@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(/D:\\AeC\\2025\\Dashboard Faturamento - Cesar\\dashboard-financ\\dashboard-faturamento\\src\\utils/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

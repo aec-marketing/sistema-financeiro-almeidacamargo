@@ -11,66 +11,86 @@ export const supabase = createClient(supabaseUrl, supabaseKey)
 
 export type Cliente = {
   id: number
-  Entidade: string
+  Entidade: string // É text, não number
   Nome: string
   CEP: string
-  Municipio: string
+  'Município': string
   'Sigla Estado': string
   endereco: string
   Telefone: string
-  CNRJ: string
+  CNPJ: string
   InscrEst: string
   'C.N.A.E.': string
 }
 
 export type ItemProduto = {
   id: number
-  'Cod. Referenc': string
-  'Descr. Produt': string
-  'Descr. Resum': string
-  'Cod. da Proc': string
-  'Conspt. Clas': string
-  'Falso da NCM': string
-  'Peso Liquido': string
-  'Status Import': string
-  'Status de Trib': string
-  'Cod. Classigr': string
-  'Descr. Subgru': string
-  'Cod. Subgrup': string
-  MARCA: string
-  GRUPO: string
+  'Cód. Referência': string
+  'Descr. Produto': string
+  'Descr. Resumo Produto': string
+  'Cód. do Produto': string
+  'Compl. Cód. do Produto': string
+  'Faixa do ICMS': string
+  'Peso Bruto Kg': string
+  'Peso Liquido Kg': string
+  'Status Importado/Nacional': string
+  'Status de Tipo de Produto': string
+  'Cód. Categoria de Grupo': string
+  'Descr. Categoria de Grupo': string
+  'Cód. Subgrupo de Produto': string
+  'Desc. Subgrupo de Produto': string
+  'Cód. Grupo Produto': string
+  'Descr. Grupo Produto': string
+  'Código Cat Prod': string
+  'Descr. Categoria de Prod': string
+  'N.B.M.': string
+  'Aliquota de IPI': string
+  'Cód. Marca Produtos': string
+  'Descr. Marca Produto': string
+  'Cód. Conta Contábil Reduzida': string
+  'Descr. Conta Contabil': string
+  cd_ctcResult: string
+  ds_ctcResult: string
+  'Cód. Unidade de Medida': string
+  'Descr. Unidade de Medida': string
+  'Código EAN 13': string
+  Largura: string
+  Altura: string
+  Comprimento: string
+  'Detalhamento Técnico': string
 }
 
 export type Venda = {
   id: number
-  'Numero da N': string
-  'Data de Emis': string
+  'Número da Nota Fiscal': string
+  'Data de Emissao da NF': string
   Quantidade: string
-  'Preço Unitari': string
+  'Preço Unitário': string
   total: string
-  'Cod. Referenc': string
-  'Descr. Produt': string
-  'Cod de Natur': string
-  'Codigo Fiscal': string
+  'Cód. Referência': string
+  'Descr. Produto': string
+  'Cod de Natureza de Operação': string
+  'Código Fiscal da Operação': string
   TIPO: string
-  'Descr de Natu': string
-  'Cod. Subgrup': string
+  'Descr de Natureza de Operação': string
+  'Cód. Subgrupo de Produto': string
+  'Desc. Subgrupo de Produto': string
   cdEmpresa: number
-  NomeEmpres: string
-  'Valor Icms To': string
+  NomeEmpresa: string
+  'Valor Icms Total': string
   'Valor do IPI': string
-  cdCli: number
+  cdCli: string // É text, não number
   NomeCli: string
   cdRepr: number
   NomeRepr: string
-  'Base de Calc': string
-  VlrBaseCMS: string
+  'Base de Calc Icms': string
+  VlrBaseICMSTotItem: string
   VlrIpiTotItem: string
   MARCA: string
   GRUPO: string
-  'CLIENTE + C': string
+  'CLIENTE + CIDADE': string
   CIDADE: string
-  'cod. Referenc': string
+  'cod. Referência + Descrição produto': string
 }
 
 export type UserProfile = {

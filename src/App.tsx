@@ -5,25 +5,11 @@ import LoginForm from './components/Auth/LoginForm'
 import Layout from './components/Layout/Layout'
 import Dashboard from './components/Dashboard/DashboardWithCharts'
 import VendasPage from './pages/VendasPage'
+import AdminDuplicatas from './pages/AdminDuplicatas'
 
 // Páginas placeholder - SEM parâmetro user
-const ClientesPage = () => (
-  <div className="space-y-6">
-    <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-      <h1 className="text-2xl font-bold text-gray-900 mb-4">Clientes</h1>
-      <p className="text-gray-600 mb-6">Página de clientes em desenvolvimento...</p>
-      <div className="bg-blue-50 p-6 rounded-lg">
-        <h3 className="font-semibold text-blue-900 mb-2">Funcionalidades Planejadas:</h3>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>• Lista completa de clientes</li>
-          <li>• Histórico de vendas por cliente</li>
-          <li>• Informações de contato</li>
-          <li>• Análise de performance por cliente</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-)
+import ClientesPage from './pages/ClientesPage'
+
 
 const RelatoriosPage = () => (
   <div className="space-y-6">
@@ -144,7 +130,8 @@ function App() {
 <Routes>
   <Route path="/" element={<Dashboard user={user} />} />
   <Route path="/vendas" element={<VendasPage user={user} />} />
-  <Route path="/clientes" element={<ClientesPage />} />
+  <Route path="/clientes" element={<ClientesPage user={user} />} />
+  <Route path="/admin/duplicatas" element={<AdminDuplicatas user={user} />} />
   <Route path="/relatorios" element={<RelatoriosPage />} />
 </Routes>
       </Layout>
