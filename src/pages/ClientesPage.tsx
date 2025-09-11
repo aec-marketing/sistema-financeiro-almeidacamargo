@@ -55,69 +55,68 @@ function useClientes() {
   const [itemsPerPage, setItemsPerPage] = useState(20)
 
   // Função para carregar clientes com paginação e filtros
-  const carregarClientes = async (
-    page: number = 1,
-    search: string = '',
-    city: string = '',
-    state: string = '',
-    perPage: number = 20
-  ) => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      // Query base com contagem
-      let query = supabase
-        .from('clientes')
-        .select('*', { count: 'exact' })
-        .order('Nome', { ascending: true })
+const carregarClientes = async (
+  page: number = 1, 
+  search: string = '', 
+  city: string = '', 
+  state: string = '', 
+  perPage: number = 20
+) => {
+  try {
+    setLoading(true)
+    setError(null)
+    
+    // Query com paginação no banco
+    let query = supabase
+      .from('clientes')
+      .select('*', { count: 'exact' })
+      .order('Nome', { ascending: true })
 
-      // Aplicar filtros se houver - USANDO NOMES CORRETOS DAS COLUNAS
-      const filters = []
-if (search.trim()) {
-  filters.push(`Nome.ilike.%${search}%`)
-  filters.push(`"Município".ilike.%${search}%`)
-  filters.push(`CNPJ.ilike.%${search}%`)
-}
-if (city.trim()) {
-  filters.push(`"Município".ilike.%${city}%`)
-}
-if (state.trim()) {
-  filters.push(`"Sigla Estado".ilike.%${state}%`)
-}
-
-      if (filters.length > 0) {
-        query = query.or(filters.join(','))
-      }
-
-
-      
-      // Aplicar paginação
-      const from = (page - 1) * perPage
-      const to = from + perPage - 1
-      query = query.range(from, to)
-
-      const { data, error } = await query
-
-if (error) {
-  console.error('Erro ao carregar clientes:', error)
-  setError('Erro ao carregar clientes')
-  return
-}
-
-// ✅ NOVA IMPLEMENTAÇÃO - Filtrar clientes mesclados
-const clientesFiltrados = filtrarClientesVirtuais(data || [])
-setClientes(clientesFiltrados)
-setTotalClientes(clientesFiltrados.length) // Usar contagem filtrada
-setTotalPages(Math.ceil(clientesFiltrados.length / perPage))
-      
-    } catch (err) {
-      console.error('Erro:', err)
-      setError('Erro inesperado ao carregar clientes')
-    } finally {
-      setLoading(false)
+    // Aplicar filtros de busca
+    const filters = []
+    if (search.trim()) {
+      filters.push(`Nome.ilike.%${search}%`)
+      filters.push(`"Município".ilike.%${search}%`)
+      filters.push(`CNPJ.ilike.%${search}%`)
     }
+    if (city.trim()) {
+      filters.push(`"Município".ilike.%${city}%`)
+    }
+    if (state.trim()) {
+      filters.push(`"Sigla Estado".ilike.%${state}%`)
+    }
+
+    if (filters.length > 0) {
+      query = query.or(filters.join(','))
+    }
+
+    // Aplicar paginação no banco
+    const from = (page - 1) * perPage
+    const to = from + perPage - 1
+    query = query.range(from, to)
+
+    const { data, error, count } = await query
+
+    if (error) {
+      console.error('Erro ao carregar clientes:', error)
+      setError('Erro ao carregar clientes')
+      return
+    }
+
+    // Aplicar filtro de mesclagem apenas nos registros da página atual
+    const clientesFiltrados = filtrarClientesVirtuais(data || [])
+    
+    setClientes(clientesFiltrados)
+    setTotalClientes(count || 0) // Total do banco
+    setTotalPages(Math.ceil((count || 0) / perPage)) // Páginas baseadas no total
+      
+  } catch (err) {
+    console.error('Erro:', err)
+    setError('Erro inesperado ao carregar clientes')
+  } finally {
+    setLoading(false)
   }
+}
 
   // Função para limpar filtros
   const clearFilters = () => {
