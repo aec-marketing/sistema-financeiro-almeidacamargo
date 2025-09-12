@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import type { UserProfile } from '../lib/supabase'
+import { calcularTotalVenda } from '../utils/calcular-total'
 
 interface VendasPageProps {
   user: UserProfile
@@ -304,7 +305,11 @@ const handlePageChange = (page: number) => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-sm font-semibold text-green-600">
-                      {formatarMoeda(converterValor(venda.total))}
+                      {formatarMoeda(calcularTotalVenda(
+                        venda.total,
+                        venda.Quantidade,
+                        venda['Preço Unitário']
+                      ))}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

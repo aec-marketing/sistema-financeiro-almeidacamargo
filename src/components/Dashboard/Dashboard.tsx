@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase, type UserProfile } from '../../lib/supabase'
+import { calcularTotalVenda } from '../../utils/calcular-total'
 
 interface DashboardProps {
   user: UserProfile
@@ -20,6 +21,10 @@ interface VendaRecente {
   'Descr. Produto': string
   NomeCli: string
   CIDADE: string
+  cdCli: number
+  cdRepr: number
+  Quantidade: string
+  'Preço Unitário': string
 }
 
 interface TopProduto {
@@ -92,7 +97,8 @@ export default function Dashboard({ user }: DashboardProps) {
             CIDADE,
             cdCli,
             cdRepr,
-            Quantidade
+            Quantidade,
+            "Preço Unitário"
           `)
           .limit(100) // Limitar para teste
 
@@ -115,7 +121,12 @@ export default function Dashboard({ user }: DashboardProps) {
           // Calcular KPIs
           const totalVendas = vendas.length
           const faturamentoTotal = vendas.reduce((acc, venda) => {
-            return acc + converterValor(venda.total || '0')
+            const totalCalculado = calcularTotalVenda(
+              venda.total,
+              venda.Quantidade,
+              venda['Preço Unitário']
+            )
+            return acc + totalCalculado
           }, 0)
           const ticketMedio = totalVendas > 0 ? faturamentoTotal / totalVendas : 0
           const clientesUnicos = new Set(vendas.map(v => v.cdCli)).size

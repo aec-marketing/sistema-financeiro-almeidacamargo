@@ -3,6 +3,8 @@ import { supabase, type Cliente } from '../lib/supabase'
 import { Search, Building2, MapPin, Phone, FileText, Filter, RotateCcw, ChevronLeft, ChevronRight, TrendingUp, Calendar, DollarSign, X } from 'lucide-react'
 import ClienteBadgeMesclado from '../components/ClienteBadgeMesclado'
 import { filtrarClientesVirtuais } from '../utils/clientes-filtrados'
+import { calcularTotalVenda } from '../utils/calcular-total'
+import BotaoDuplicatas from '../components/BotaoDuplicatas'
 
 // Definindo o tipo localmente para evitar problemas de importação
 interface UserProfile {
@@ -167,10 +169,6 @@ function useVendasCliente(cliente: Cliente | null) {
   const [metricas, setMetricas] = useState<MetricasCliente | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const converterValor = (valor: string): number => {
-    if (!valor) return 0
-    return parseFloat(valor.toString().replace(',', '.')) || 0
-  }
 
   const calcularFrequenciaCompras = (primeiraCompra: string, ultimaCompra: string, totalVendas: number): string => {
     if (!primeiraCompra || !ultimaCompra || totalVendas <= 1) return 'Cliente novo'
@@ -235,7 +233,12 @@ useEffect(() => {
         if (vendas.length > 0) {
           const totalVendas = vendas.length
           const faturamentoTotal = vendas.reduce((acc, venda) => {
-            return acc + converterValor(venda.total || '0')
+            const totalCalculado = calcularTotalVenda(
+              venda.total,
+              venda.Quantidade,
+              venda['Preço Unitário']
+            )
+            return acc + totalCalculado
           }, 0)
           const ticketMedio = faturamentoTotal / totalVendas
 
@@ -447,8 +450,12 @@ function ModalVendasCliente({ cliente, isOpen, onClose }: {
                           </div>
                           <div className="text-right">
                             <div className="text-lg font-bold text-green-600">
-                              {formatarMoeda(parseFloat(venda.total?.replace(',', '.') || '0'))}
-                            </div>
+  {formatarMoeda(calcularTotalVenda(
+    venda.total,
+    venda.Quantidade,
+    venda['Preço Unitário']
+  ))}
+</div>
                           </div>
                         </div>
                       </div>
@@ -652,10 +659,17 @@ export default function ClientesPage({ user }: ClientesPageProps) {
   return (
     <div className="space-y-6">
       {/* Header da página */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
-        <p className="text-gray-600 mt-1">Gerencie os clientes da Almeida&Camargo</p>
-      </div>
+<div className="flex items-start justify-between">
+  <div>
+    <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
+    <p className="text-gray-600 mt-1">Gerencie os clientes da Almeida&Camargo</p>
+  </div>
+  
+  {/* Botão de duplicatas - só aparece para admin */}
+  <div className="group">
+    <BotaoDuplicatas user={user} />
+  </div>
+</div>
 
       {/* Cards de estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
