@@ -7,38 +7,9 @@ import Dashboard from './components/Dashboard/DashboardWithCharts'
 import VendasPage from './pages/VendasPage'
 import AdminDuplicatas from './pages/AdminDuplicatas'
 
-// Páginas placeholder - SEM parâmetro user
+// Páginas completas
 import ClientesPage from './pages/ClientesPage'
-
-
-const RelatoriosPage = () => (
-  <div className="space-y-6">
-    <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-      <h1 className="text-2xl font-bold text-gray-900 mb-4">Relatórios</h1>
-      <p className="text-gray-600 mb-6">Central de relatórios em desenvolvimento...</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-green-50 p-6 rounded-lg">
-          <h3 className="font-semibold text-green-900 mb-2">Relatórios de Vendas</h3>
-          <ul className="text-sm text-green-800 space-y-1 text-left">
-            <li>• Faturamento por período</li>
-            <li>• Performance por representante</li>
-            <li>• Análise de produtos</li>
-            <li>• Comparativo anual</li>
-          </ul>
-        </div>
-        <div className="bg-purple-50 p-6 rounded-lg">
-          <h3 className="font-semibold text-purple-900 mb-2">Exportações</h3>
-          <ul className="text-sm text-purple-800 space-y-1 text-left">
-            <li>• Export para Excel</li>
-            <li>• Relatórios em PDF</li>
-            <li>• Dashboards personalizados</li>
-            <li>• Agendamento automático</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  </div>
-)
+import RelatoriosPage from './pages/RelatorioPage'  // ← Esta linha deve existir
 
 function App() {
   const [user, setUser] = useState<UserProfile | null>(null)
@@ -132,7 +103,7 @@ function App() {
   <Route path="/vendas" element={<VendasPage user={user} />} />
   <Route path="/clientes" element={<ClientesPage user={user} />} />
   <Route path="/admin/duplicatas" element={<AdminDuplicatas user={user} />} />
-  <Route path="/relatorios" element={<RelatoriosPage />} />
+  <Route path="/relatorios" element={<RelatoriosPage user={user} />} />
 </Routes>
       </Layout>
     </Router>
