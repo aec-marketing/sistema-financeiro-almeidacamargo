@@ -185,6 +185,7 @@ export default function RelatoriosPage({ user }: RelatoriosPageProps) {
   });
   const [visualizacao, setVisualizacao] = useState('tabela');
   const [nomeRelatorio, setNomeRelatorio] = useState('');
+  const [filtroEditando, setFiltroEditando] = useState<Filtro | null>(null);
   
   // Estados dos dados
   const [dadosClientes, setDadosClientes] = useState<Cliente[]>([]);
@@ -1213,6 +1214,13 @@ const resetarPaginacao = () => {
                       <span className="font-bold text-purple-600">"{filtro.valor}"</span>
                     </span>
                     <button
+                      onClick={() => setFiltroEditando(filtro)}
+                      className="text-blue-500 hover:text-blue-700 ml-2"
+                      title="Editar filtro"
+                    >
+                      <Filter className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={() => removerFiltro(filtro.id)}
                       className="text-red-500 hover:text-red-700 ml-2"
                     >
@@ -1739,155 +1747,6 @@ const resetarPaginacao = () => {
               </button>
             </div>
           </div>
-          {/* Modal de Configuração de Gráficos */}
-{mostrarModalGrafico && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto relative">
-      {processandoGrafico && (
-        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg z-10">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="text-sm text-gray-600 mt-2">Processando gráfico...</p>
-          </div>
-        </div>
-      )}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-gray-900">Configurar Gráfico</h2>
-        <button
-          onClick={() => setMostrarModalGrafico(false)}
-          className="text-gray-400 hover:text-gray-600"
-        >
-          <X className="w-6 h-6" />
-        </button>
-      </div>
-      
-      <div className="space-y-6">
-        {/* Análise de Contexto */}
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <h3 className="font-medium text-blue-900 mb-2">Análise dos Filtros Aplicados:</h3>
-          <div className="text-blue-700 text-sm">
-  {filtros.length === 0 ? (
-    <p>Nenhum filtro aplicado - visualizando todos os dados</p>
-  ) : (
-    <div>
-      <p className="font-medium mb-2">{filtros.length} filtros ativos:</p>
-      <ul className="list-disc list-inside space-y-1">
-        {filtros.map(f => (
-          <li key={f.id}>
-            <strong>{getNomeTabela(f.tabela)}</strong> → {getFieldConfigSafe(f.tabela, f.campo).label} = "{f.valor}"
-          </li>
-        ))}
-      </ul>
-      <p className="mt-2 text-xs">
-        Gráficos relacionados aos campos filtrados são ocultados automaticamente.
-      </p>
-    </div>
-  )}
-</div>
-        </div>
-
-       {/* Sugestões Inteligentes */}
-<div>
-  <h3 className="font-medium text-gray-900 mb-3">Sugestões de Gráficos:</h3>
-  <div className="space-y-2">
-    {gerarSugestoes().map(sugestao => (
-      <button
-        key={sugestao.id}
-        onClick={async () => {
-  setProcessandoGrafico(true);
-
-  try {
-    const config: GraficoConfig = {
-      campoAgrupamento: sugestao.campo,
-      metrica: sugestao.metrica,
-      tipoGrafico: sugestao.tipoGrafico,
-      topN: 10,
-      titulo: sugestao.titulo,
-      filtrosAplicados: [...filtros] // Salvar cópia dos filtros atuais
-    };
-
-    // Pequeno delay para mostrar o loading
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    const dados = processarDadosGrafico(config);
-
-    if (dados.length === 0) {
-      alert('Não foi possível gerar o gráfico. Dados insuficientes ou filtros muito restritivos.');
-      return;
-    }
-
-    const novoGrafico = {
-      id: `grafico-${proximoId}`,
-      config,
-      dados
-    };
-
-    setGraficos(prev => [...prev, novoGrafico]);
-    setProximoId(prev => prev + 1);
-    setMostrarModalGrafico(false);
-  } finally {
-    setProcessandoGrafico(false);
-  }
-}}
-        className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-      >
-        <div className={`font-medium ${sugestao.cor}`}>
-          {sugestao.icone} {sugestao.titulo}
-        </div>
-        <div className="text-sm text-gray-600">{sugestao.descricao}</div>
-        <div className="text-xs text-gray-400 mt-1">
-          Métrica: {sugestao.metrica.replace('_', ' ')} • Tipo: {sugestao.tipoGrafico}
-        </div>
-      </button>
-    ))}
-  </div>
-
-  {gerarSugestoes().length === 0 ? (
-  <div className="text-center py-8 text-gray-500">
-    <p>Todas as opções de gráficos relevantes já estão sendo filtradas.</p>
-    <p className="text-sm mt-2">Remova alguns filtros para ver mais sugestões.</p>
-  </div>
-) : dadosFiltrados.length < 10 && (
-  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-    <div className="flex items-center">
-      <div className="text-yellow-600 mr-3">⚠️</div>
-      <div>
-        <p className="text-sm font-medium text-yellow-800">
-          Poucos dados detectados ({dadosFiltrados.length} registros)
-        </p>
-        <p className="text-xs text-yellow-700 mt-1">
-          Gráficos com menos de 10 registros podem não ser muito informativos. 
-          Considere remover alguns filtros para obter mais dados.
-        </p>
-      </div>
-    </div>
-  </div>
-)}
-</div>
-
-        {/* Botões de Ação */}
-        <div className="flex gap-3 pt-4 border-t">
-          <button
-            onClick={() => setMostrarModalGrafico(false)}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={() => {
-              // Implementar geração do gráfico
-              console.log('Gerar gráfico...');
-              setMostrarModalGrafico(false);
-            }}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Gerar Gráfico
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
 {/* Modal de Configurações Avançadas */}
 {mostrarModalConfig && configTemporaria && (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -2056,6 +1915,264 @@ const resetarPaginacao = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Configuração de Gráficos */}
+      {mostrarModalGrafico && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto relative">
+            {processandoGrafico && (
+              <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg z-10">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-sm text-gray-600 mt-2">Processando gráfico...</p>
+                </div>
+              </div>
+            )}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Configurar Gráfico</h2>
+              <button
+                onClick={() => setMostrarModalGrafico(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Análise de Contexto */}
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-medium text-blue-900 mb-2">Análise dos Filtros Aplicados:</h3>
+                <div className="text-blue-700 text-sm">
+                  {filtros.length === 0 ? (
+                    <p>Nenhum filtro aplicado - visualizando todos os dados</p>
+                  ) : (
+                    <div>
+                      <p className="font-medium mb-2">{filtros.length} filtros ativos:</p>
+                      <ul className="list-disc list-inside space-y-1">
+                        {filtros.map(f => (
+                          <li key={f.id}>
+                            <strong>{getNomeTabela(f.tabela)}</strong> → {getFieldConfigSafe(f.tabela, f.campo).label} = "{f.valor}"
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-2 text-xs">
+                        Gráficos relacionados aos campos filtrados são ocultados automaticamente.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Sugestões Inteligentes */}
+              <div>
+                <h3 className="font-medium text-gray-900 mb-3">Sugestões de Gráficos:</h3>
+                <div className="space-y-2">
+                  {gerarSugestoes().map(sugestao => (
+                    <button
+                      key={sugestao.id}
+                      onClick={async () => {
+                        setProcessandoGrafico(true);
+
+                        try {
+                          const config: GraficoConfig = {
+                            campoAgrupamento: sugestao.campo,
+                            metrica: sugestao.metrica,
+                            tipoGrafico: sugestao.tipoGrafico,
+                            topN: 10,
+                            titulo: sugestao.titulo,
+                            filtrosAplicados: [...filtros] // Salvar cópia dos filtros atuais
+                          };
+
+                          // Pequeno delay para mostrar o loading
+                          await new Promise(resolve => setTimeout(resolve, 100));
+
+                          const dados = processarDadosGrafico(config);
+
+                          if (dados.length === 0) {
+                            alert('Não foi possível gerar o gráfico. Dados insuficientes ou filtros muito restritivos.');
+                            return;
+                          }
+
+                          const novoGrafico = {
+                            id: `grafico-${proximoId}`,
+                            config,
+                            dados
+                          };
+
+                          setGraficos(prev => [...prev, novoGrafico]);
+                          setProximoId(prev => prev + 1);
+                          setMostrarModalGrafico(false);
+                        } finally {
+                          setProcessandoGrafico(false);
+                        }
+                      }}
+                      className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div className={`font-medium ${sugestao.cor}`}>
+                        {sugestao.icone} {sugestao.titulo}
+                      </div>
+                      <div className="text-sm text-gray-600">{sugestao.descricao}</div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        Métrica: {sugestao.metrica.replace('_', ' ')} • Tipo: {sugestao.tipoGrafico}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {gerarSugestoes().length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>Todas as opções de gráficos relevantes já estão sendo filtradas.</p>
+                    <p className="text-sm mt-2">Remova alguns filtros para ver mais sugestões.</p>
+                  </div>
+                ) : dadosFiltrados.length < 10 && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-center">
+                      <div className="text-yellow-600 mr-3">⚠️</div>
+                      <div>
+                        <p className="text-sm font-medium text-yellow-800">
+                          Poucos dados detectados ({dadosFiltrados.length} registros)
+                        </p>
+                        <p className="text-xs text-yellow-700 mt-1">
+                          Gráficos com menos de 10 registros podem não ser muito informativos.
+                          Considere remover alguns filtros para obter mais dados.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Botões de Ação */}
+              <div className="flex gap-3 pt-4 border-t">
+                <button
+                  onClick={() => setMostrarModalGrafico(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    // Implementar geração do gráfico
+                    console.log('Gerar gráfico...');
+                    setMostrarModalGrafico(false);
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Gerar Gráfico
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edição de Filtro */}
+      {filtroEditando && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Editar Filtro</h2>
+              <button
+                onClick={() => setFiltroEditando(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Tabela (desabilitada) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tabela (não editável)
+                </label>
+                <input
+                  type="text"
+                  value={getNomeTabela(filtroEditando.tabela)}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+                />
+              </div>
+
+              {/* Campo (desabilitado) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Campo (não editável)
+                </label>
+                <input
+                  type="text"
+                  value={getFieldConfigSafe(filtroEditando.tabela, filtroEditando.campo).label}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+                />
+              </div>
+
+              {/* Operador (editável) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Operador
+                </label>
+                <select
+                  value={filtroEditando.operador}
+                  onChange={(e) => setFiltroEditando({...filtroEditando, operador: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  {getOperatorsForField(filtroEditando.tabela, filtroEditando.campo).map((op: { value: string; label: string }) => (
+                    <option key={op.value} value={op.value}>{op.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Valor (editável) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Valor
+                </label>
+                {getFieldConfigSafe(filtroEditando.tabela, filtroEditando.campo).tipo === 'select' ? (
+                  <select
+                    value={filtroEditando.valor}
+                    onChange={(e) => setFiltroEditando({...filtroEditando, valor: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    {obterValoresUnicos(filtroEditando.tabela, filtroEditando.campo).map(valor => (
+                      <option key={valor} value={valor}>{valor}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={filtroEditando.valor}
+                    onChange={(e) => setFiltroEditando({...filtroEditando, valor: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Botões */}
+            <div className="flex gap-3 pt-6 border-t mt-6">
+              <button
+                onClick={() => setFiltroEditando(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  // Atualizar o filtro existente
+                  setFiltros(prev => prev.map(f =>
+                    f.id === filtroEditando.id ? filtroEditando : f
+                  ));
+                  setFiltroEditando(null);
+                }}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Salvar Alterações
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

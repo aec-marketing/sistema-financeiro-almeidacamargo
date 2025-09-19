@@ -5,7 +5,6 @@ import ClienteBadgeMesclado from '../components/ClienteBadgeMesclado'
 import { filtrarClientesVirtuais } from '../utils/clientes-filtrados'
 import { calcularTotalVenda } from '../utils/calcular-total'
 import BotaoDuplicatas from '../components/BotaoDuplicatas'
-
 // Definindo o tipo localmente para evitar problemas de importação
 interface UserProfile {
   id: string

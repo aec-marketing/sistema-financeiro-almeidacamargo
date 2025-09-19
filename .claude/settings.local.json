@@ -29,7 +29,11 @@
       "Read(/D:\\AeC\\2025\\Dashboard Faturamento - Cesar\\dashboard-financ\\dashboard-faturamento\\src/**)",
       "Read(/D:\\AeC\\2025\\Dashboard Faturamento - Cesar\\dashboard-financ\\dashboard-faturamento\\src/**)",
       "Read(/D:\\AeC\\2025\\Dashboard Faturamento - Cesar\\dashboard-financ\\dashboard-faturamento\\src\\pages/**)",
-      "Read(/D:\\AeC\\2025\\Dashboard Faturamento - Cesar\\dashboard-financ\\dashboard-faturamento\\src\\pages/**)"
+      "Read(/D:\\AeC\\2025\\Dashboard Faturamento - Cesar\\dashboard-financ\\dashboard-faturamento\\src\\pages/**)",
+      "mcp__ide__getDiagnostics",
+      "Bash(grep:*)",
+      "Bash(npm run build:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

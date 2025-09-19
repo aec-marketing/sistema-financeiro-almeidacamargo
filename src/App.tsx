@@ -10,6 +10,7 @@ import AdminDuplicatas from './pages/AdminDuplicatas'
 // Páginas completas
 import ClientesPage from './pages/ClientesPage'
 import RelatoriosPage from './pages/RelatorioPage'  // ← Esta linha deve existir
+import TemplatesPage from './pages/TemplatesPage';
 
 function App() {
   const [user, setUser] = useState<UserProfile | null>(null)
@@ -103,7 +104,10 @@ function App() {
   <Route path="/vendas" element={<VendasPage user={user} />} />
   <Route path="/clientes" element={<ClientesPage user={user} />} />
   <Route path="/admin/duplicatas" element={<AdminDuplicatas user={user} />} />
-  <Route path="/relatorios" element={<RelatoriosPage user={user} />} />
+ 
+ <Route path="/relatorios" element={<RelatoriosPage user={user} />} />
+  <Route path="/templates" element={<TemplatesPage user={user} />} />
+
 </Routes>
       </Layout>
     </Router>
