@@ -6,6 +6,7 @@ import Layout from './components/Layout/Layout'
 import Dashboard from './components/Dashboard/DashboardWithCharts'
 import VendasPage from './pages/VendasPage'
 import AdminDuplicatas from './pages/AdminDuplicatas'
+import GestaoUsuarios from './pages/GestaoUsuarios'
 
 // Páginas completas
 import ClientesPage from './pages/ClientesPage'
@@ -107,6 +108,7 @@ function App() {
  
  <Route path="/relatorios" element={<RelatoriosPage user={user} />} />
   <Route path="/templates" element={<TemplatesPage user={user} />} />
+<Route path="/gestao-usuarios" element={<GestaoUsuarios />} />
 
 </Routes>
       </Layout>
