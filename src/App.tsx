@@ -120,13 +120,13 @@ function App() {
     <Router>
       <Layout user={user} onLogout={handleLogout}>
 <Routes>
-  <Route path="/" element={<Dashboard user={user} />} />
-  <Route path="/vendas" element={<VendasPage user={user} />} />
-  <Route path="/clientes" element={<ClientesPage user={user} />} />
-  <Route path="/admin/duplicatas" element={<AdminDuplicatas user={user} />} />
- 
- <Route path="/relatorios" element={<RelatoriosPage user={user} />} />
-  <Route path="/templates" element={<TemplatesPage user={user} />} />
+  <Route path="/" element={<Dashboard />} />
+  <Route path="/vendas" element={<VendasPage />} />
+  <Route path="/clientes" element={<ClientesPage />} />
+  <Route path="/admin/duplicatas" element={<AdminDuplicatas />} />
+
+ <Route path="/relatorios" element={<RelatoriosPage />} />
+  <Route path="/templates" element={<TemplatesPage />} />
 <Route path="/gestao-usuarios" element={<GestaoUsuarios />} />
 <Route path="/admin/importacao" element={<ImportacaoDados />} />
 

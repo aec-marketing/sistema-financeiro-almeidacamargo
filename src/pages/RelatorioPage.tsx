@@ -1,13 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { X, Plus, Search, Download, Save, BarChart3, Table, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import type { UserProfile } from '../lib/supabase';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { gerarRelatorioPDF } from '../utils/exportPDF';
-import html2canvas from 'html2canvas'; // <-- Adicionar esta linha
-interface RelatoriosPageProps {
-  user: UserProfile;
-}
+import html2canvas from 'html2canvas';
+import { useUserAccess } from '../hooks/useUserAccess';
 
 // Interfaces corrigidas para os dados reais do Supabase
 interface Cliente {
@@ -173,7 +170,8 @@ const getOperatorsForField = (tabela: string, campo: string) => {
   return OPERADORES[config.tipo] || OPERADORES.texto;
 };
 
-export default function RelatoriosPage({ user }: RelatoriosPageProps) {
+export default function RelatoriosPage() {
+  const { user } = useUserAccess()
   // Estados principais
   const [filtros, setFiltros] = useState<Filtro[]>([]);
   const [novoFiltro, setNovoFiltro] = useState({
@@ -343,8 +341,8 @@ const carregarDados = async () => {
         "Cód. Referência"
       `, 
       // Additional filters for vendas based on user role
-      user.role === 'consultor_vendas' && user.cd_representante 
-        ? { cdRepr: user.cd_representante } 
+      user?.role === 'consultor_vendas' && user?.cd_representante
+        ? { cdRepr: user.cd_representante }
         : undefined
       )
     ]);

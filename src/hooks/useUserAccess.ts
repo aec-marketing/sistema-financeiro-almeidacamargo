@@ -10,6 +10,7 @@ export interface UserAccess {
   // Permissões booleanas para facilitar uso
   isAdmin: boolean
   isVendedor: boolean
+  isAtivo: boolean
   canRead: boolean
   canCreate: boolean
   canUpdate: boolean
@@ -27,6 +28,7 @@ const initialUserAccess: UserAccess = {
   error: null,
   isAdmin: false,
   isVendedor: false,
+  isAtivo: false,
   canRead: false,
   canCreate: false,
   canUpdate: false,
@@ -119,11 +121,11 @@ export const useUserAccess = (): UserAccess => {
           user: profile,
           loading: false,
           error: null,
-          
+
           // Roles básicos
           isAdmin,
           isVendedor,
-            isAtivo: profile?.ativo ?? false, // Adicionar esta linha
+          isAtivo: profile?.ativo ?? false,
 
           // Permissões detalhadas
           canRead: true, // Todos podem ler (com filtros)
@@ -131,7 +133,7 @@ export const useUserAccess = (): UserAccess => {
           canUpdate: isAdmin, // Apenas admin pode editar
           canDelete: isAdmin, // Apenas admin pode excluir
           canManageUsers: isAdmin, // Apenas admin gerencia usuários
-          
+
           // Dados do representante
           representanteName,
           representanteCode

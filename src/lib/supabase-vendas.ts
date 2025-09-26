@@ -45,7 +45,7 @@ export async function criarVenda(
     }
 
     // Registrar auditoria
-    await registrarAuditoria(data.id, 'CREATE', usuario, null, dadosVenda)
+    await registrarAuditoria(data.id, 'CREATE', usuario, undefined, dadosVenda as unknown as Record<string, unknown>)
 
     return { sucesso: true, venda: data }
   } catch (err) {
@@ -101,7 +101,7 @@ export async function excluirVenda(
 ): Promise<{ sucesso: boolean; erro?: string }> {
   try {
     // Registrar auditoria ANTES de excluir
-    await registrarAuditoria(vendaId, 'DELETE', usuario, vendaAnterior, null)
+    await registrarAuditoria(vendaId, 'DELETE', usuario, vendaAnterior, undefined)
 
     const { error } = await supabase
       .from('vendas')
@@ -241,19 +241,19 @@ export async function buscarClientePorCodigo(codigo: string): Promise<{
       .eq('Entidade', codigo)
       .single()
 
-    if (error) {
-      return { 
-        sucesso: false, 
-        erro: error.code === 'PGRST116' ? 'Cliente não encontrado' : 'Erro ao buscar cliente'
+    if (error || !data) {
+      return {
+        sucesso: false,
+        erro: error?.code === 'PGRST116' ? 'Cliente não encontrado' : 'Erro ao buscar cliente'
       }
     }
 
     return {
       sucesso: true,
       cliente: {
-        nome: data.Nome,
-        cidade: data.Município,
-        estado: data['Sigla Estado'] || 'SP'
+        nome: (data as any).Nome,
+        cidade: (data as any).Município,
+        estado: (data as any)['Sigla Estado'] || 'SP'
       }
     }
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -3,19 +3,17 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useUserAccess } from '../hooks/useUserAccess'
 import RoleGuard from '../components/Auth/RoleGuard'
-import { 
-  Users, 
-  Plus, 
-  Edit3, 
-  Trash2, 
-  Shield, 
-  UserCheck, 
+import {
+  Users,
+  Plus,
+  Edit3,
+  Shield,
+  UserCheck,
   UserX,
   Search,
   RefreshCw,
   AlertCircle,
-  Mail,
-  Phone
+  Mail
 } from 'lucide-react'
 
 // Interfaces

@@ -3,28 +3,25 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, BookmarkPlus, Clock, Star, Grid3X3 } from 'lucide-react';
 import { useTemplates } from '../hooks/useTemplates';
-import type { UserProfile } from '../lib/supabase';
 import TemplateCard from '../components/Templates/TemplateCard';
-
-interface TemplatesPageProps {
-  user: UserProfile;
-}
+import { useUserAccess } from '../hooks/useUserAccess';
 
 type FiltroTemplate = 'todos' | 'favoritos' | 'recentes';
 
-export default function TemplatesPage({ user }: TemplatesPageProps) {
+export default function TemplatesPage() {
   const navigate = useNavigate();
-  const { 
-    templates, 
-    templatesFavoritos, 
-    templatesRecentes, 
-    loading, 
+  const { user } = useUserAccess();
+  const {
+    templates,
+    templatesFavoritos,
+    templatesRecentes,
+    loading,
     error,
     excluirTemplate,
     duplicarTemplate,
     alternarFavorito,
     atualizarTemplate
-  } = useTemplates(user);
+  } = useTemplates(user || undefined);
 
   const [filtroAtivo, setFiltroAtivo] = useState<FiltroTemplate>('todos');
   const [busca, setBusca] = useState('');

@@ -69,8 +69,7 @@ export default function DashboardAdmin() {
   const {
     user,
     loading: authLoading,
-    error: authError,
-    isAdmin
+    error: authError
   } = useUserAccess()
 
   // Estados principais

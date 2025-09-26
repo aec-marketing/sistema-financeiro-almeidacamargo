@@ -1,30 +1,25 @@
 import { useState, useEffect } from 'react'
-import { 
-  detectarDuplicatas, 
-  analisarGrupo, 
-  mesclarDuplicatas, 
+import {
+  detectarDuplicatas,
+  analisarGrupo,
+  mesclarDuplicatas,
   gerarRelatorio,
   type GrupoDuplicata} from '../utils/duplicatas'
-import { 
-  AlertTriangle, 
-  CheckCircle, 
-  XCircle, 
-  Users, 
-  Zap, 
-  Eye, 
+import {
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Users,
+  Zap,
+  Eye,
   RefreshCw,
   Shield,
   Info
 } from 'lucide-react'
+import { useUserAccess } from '../hooks/useUserAccess'
 
-interface AdminDuplicatasProps {
-  user: {
-    role: 'admin_financeiro' | 'consultor_vendas'
-    nome: string
-  }
-}
-
-export default function AdminDuplicatas({ user }: AdminDuplicatasProps) {
+export default function AdminDuplicatas() {
+  const { user } = useUserAccess()
   const [grupos, setGrupos] = useState<GrupoDuplicata[]>([])
   const [loading, setLoading] = useState(false)
   const [processando, setProcessando] = useState(false)
@@ -38,14 +33,14 @@ export default function AdminDuplicatas({ user }: AdminDuplicatasProps) {
   const [modalAberto, setModalAberto] = useState(false)
 
   useEffect(() => {
-    if (user.role === 'admin_financeiro') {
+    if (user?.role === 'admin_financeiro') {
       carregarDuplicatas()
     }
-  }, [user.role])
+  }, [user?.role])
 
 
   // Verificar se é admin
-  if (user.role !== 'admin_financeiro') {
+  if (user?.role !== 'admin_financeiro') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

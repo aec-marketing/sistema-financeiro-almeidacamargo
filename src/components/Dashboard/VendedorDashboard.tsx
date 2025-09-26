@@ -199,12 +199,15 @@ const VendedorDashboard: React.FC = () => {
             const data = venda['Data de Emissao da NF']
             if (!data) return false
 
-            let dia, mes, ano
+            let mes, ano
             if (data.includes('/')) {
-              [dia, mes, ano] = data.split('/')
+              const [, mesStr, anoStr] = data.split('/')
+              mes = mesStr
+              ano = anoStr
             } else if (data.includes('-')) {
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              [ano, mes, dia] = data.split('-')
+              const [anoStr, mesStr] = data.split('-')
+              mes = mesStr
+              ano = anoStr
             } else {
               return false
             }

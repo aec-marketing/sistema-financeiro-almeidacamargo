@@ -6,19 +6,7 @@ import ClienteBadgeMesclado from '../components/ClienteBadgeMesclado'
 import { filtrarClientesVirtuais } from '../utils/clientes-filtrados'
 import { calcularTotalVenda } from '../utils/calcular-total'
 import BotaoDuplicatas from '../components/BotaoDuplicatas'
-// Definindo o tipo localmente para evitar problemas de importação
-interface UserProfile {
-  id: string
-  role: 'admin_financeiro' | 'consultor_vendas'
-  nome: string
-  cd_representante?: number
-  ativo: boolean
-  created_at: string
-}
-
-interface ClientesPageProps {
-  user: UserProfile
-}
+import { useUserAccess } from '../hooks/useUserAccess'
 
 // Tipos para vendas e métricas
 interface VendaCliente {
@@ -615,7 +603,8 @@ function ClienteCard({ cliente, onVerVendas }: {
 }
 
 // Componente principal da página
-export default function ClientesPage({ user }: ClientesPageProps) {
+export default function ClientesPage() {
+  const { user } = useUserAccess()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const vendedorFiltro = searchParams.get('vendedor')
@@ -683,9 +672,11 @@ export default function ClientesPage({ user }: ClientesPageProps) {
   </div>
   
   {/* Botão de duplicatas - só aparece para admin */}
-  <div className="group">
-    <BotaoDuplicatas user={user} />
-  </div>
+  {user && (
+    <div className="group">
+      <BotaoDuplicatas user={user} />
+    </div>
+  )}
 </div>
 
       {/* Filtro de vendedor ativo */}
