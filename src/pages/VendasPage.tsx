@@ -1,387 +1,449 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-import { useState, useEffect } from 'react'
+// src/pages/VendasPage.tsx (VERSÃO ATUALIZADA COM CRUD)
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { Search, Filter, ChevronLeft, ChevronRight, Plus, Edit3, Trash2, AlertCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import type { UserProfile } from '../lib/supabase'
+import { useUserAccess } from '../hooks/useUserAccess'
+import { formatarData, formatarMoeda, converterValor } from '../utils/formatters'
 import { calcularTotalVenda } from '../utils/calcular-total'
+import { registrarAuditoria } from '../utils/vendas-audit'
+import ModalVenda from '../components/vendas/ModalVenda'
+import type { Venda } from '../lib/supabase'
 
-interface VendasPageProps {
-  user: UserProfile
-}
+const ITENS_POR_PAGINA = 20
 
-interface Venda {
-  id: number
-  'Número da Nota Fiscal': string
-  'Data de Emissao da NF': string
-  total: string
-  'Descr. Produto': string
-  NomeCli: string
-  CIDADE: string
-  cdCli: number
-  cdRepr: number
-  Quantidade: string
-  'Preço Unitário': string
-}
-
-const ITEMS_PER_PAGE = 20
-
-export default function VendasPage({ user }: VendasPageProps) {
+export default function VendasPage() {
+  const { user, isAdmin } = useUserAccess()
   const [vendas, setVendas] = useState<Venda[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
   const [searchTerm, setSearchTerm] = useState('')
-  const [dateFilter, setDateFilter] = useState('')
-  const [cityFilter, setCityFilter] = useState('')
+  const [filtroCity, setFiltroCity] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalVendas, setTotalVendas] = useState(0)
 
-  // Função para converter valor brasileiro para número
-  const converterValor = (valor: string): number => {
-    if (!valor) return 0
-    return parseFloat(valor.toString().replace(',', '.')) || 0
-  }
+  // Estados do CRUD Modal
+  const [modalAberto, setModalAberto] = useState(false)
+  const [modoModal, setModoModal] = useState<'criar' | 'editar'>('criar')
+  const [vendaEditando, setVendaEditando] = useState<Venda | null>(null)
+  const [excluindoVenda, setExcluindoVenda] = useState<number | null>(null)
 
-  // Função para formatar moeda
-  const formatarMoeda = (valor: number): string => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(valor)
-  }
+  // Debounce para search
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
 
-  // Função para formatar data
-  const formatarData = (data: string): string => {
-    if (!data) return ''
-    return data
-  }
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 500)
 
-  // Carregar vendas
-const carregarVendas = async (page = 1, search = '', cityFilter = '') => {    try {
-      setLoading(true)
-      setError(null)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
 
-      // Query base
+  // Reset página quando filtros mudam
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [debouncedSearchTerm, filtroCity])
+
+  const carregarVendas = useCallback(async () => {
+    if (!user) return
+    
+    setLoading(true)
+    try {
       let query = supabase
         .from('vendas')
         .select(`
-          id,
-          "Número da Nota Fiscal",
-          "Data de Emissao da NF",
-          total,
-          "Descr. Produto",
-          NomeCli,
-          CIDADE,
-          cdCli,
-          cdRepr,
-          Quantidade,
-          "Preço Unitário"
+          *
         `, { count: 'exact' })
 
-      // Filtros de role
+      // Filtrar por representante se for consultor
       if (user.role === 'consultor_vendas' && user.cd_representante) {
         query = query.eq('cdRepr', user.cd_representante)
       }
 
-      // Filtro de busca
-      if (search) {
-        query = query.or(`"Descr. Produto".ilike.%${search}%,NomeCli.ilike.%${search}%,"Número da Nota Fiscal".ilike.%${search}%`)
+      // Aplicar filtros de busca
+      if (debouncedSearchTerm) {
+        query = query.or(`NomeCli.ilike.%${debouncedSearchTerm}%,NomeRepr.ilike.%${debouncedSearchTerm}%,"Descr. Produto".ilike.%${debouncedSearchTerm}%,"Número da Nota Fiscal".ilike.%${debouncedSearchTerm}%`)
       }
 
-      // Filtro de cidade
-      if (cityFilter) {
-        query = query.ilike('CIDADE', `%${cityFilter}%`)
+      if (filtroCity) {
+        query = query.eq('CIDADE', filtroCity)
       }
 
       // Paginação
-      const from = (page - 1) * ITEMS_PER_PAGE
-      const to = from + ITEMS_PER_PAGE - 1
+      const from = (currentPage - 1) * ITENS_POR_PAGINA
+      const to = from + ITENS_POR_PAGINA - 1
 
-      const { data, error: queryError, count } = await query
-        .range(from, to)
-        .order('id', { ascending: false })
+      query = query.range(from, to).order('id', { ascending: false })
 
-      if (queryError) {
-        throw queryError
+      const { data, error, count } = await query
+
+      if (error) {
+        console.error('Erro ao carregar vendas:', error)
+        return
       }
 
       setVendas(data || [])
-      setTotalPages(Math.ceil((count || 0) / ITEMS_PER_PAGE))
-
-    } catch (err) {
-      console.error('Erro ao carregar vendas:', err)
-      setError(`Erro ao carregar vendas: ${err}`)
+      setTotalVendas(count || 0)
+    } catch (error) {
+      console.error('Erro ao carregar vendas:', error)
     } finally {
       setLoading(false)
     }
+  }, [user, debouncedSearchTerm, filtroCity, currentPage])
+
+  // Carregar vendas quando filtros ou página mudam
+  useEffect(() => {
+    if (user) {
+      carregarVendas()
+    }
+  }, [user, currentPage, debouncedSearchTerm, filtroCity, carregarVendas])
+
+  // Cidades únicas para o filtro
+  const cidades = useMemo(() => {
+    return Array.from(new Set(vendas.map(v => v.CIDADE).filter(Boolean))).sort()
+  }, [vendas])
+
+  const totalPages = Math.ceil(totalVendas / ITENS_POR_PAGINA)
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page)
+    }
   }
 
-// Effect inicial
-useEffect(() => {
-  carregarVendas(1, searchTerm, cityFilter)
-}, [user])
-
-// Effect para filtros  
-useEffect(() => {
-  const timeoutId = setTimeout(() => {
-    setCurrentPage(1)
-    carregarVendas(1, searchTerm, cityFilter)
-  }, 500)
-  return () => clearTimeout(timeoutId)
-}, [searchTerm, dateFilter, cityFilter])
-
-// Mudança de página
-const handlePageChange = (page: number) => {
-  setCurrentPage(page)
-  carregarVendas(page, searchTerm, cityFilter)
-}
-
-  // Limpar filtros
-  const limparFiltros = () => {
-    setSearchTerm('')
-    setDateFilter('')
-    setCityFilter('')
-    setCurrentPage(1)
+  // Funções do CRUD
+  const abrirModalCriacao = () => {
+    setModoModal('criar')
+    setVendaEditando(null)
+    setModalAberto(true)
   }
 
-  if (loading && vendas.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-            <div className="space-y-3">
-              {[1, 2, 3, 4, 5].map(i => (
-                <div key={i} className="h-16 bg-gray-200 rounded"></div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+  const abrirModalEdicao = (venda: Venda) => {
+    setModoModal('editar')
+    setVendaEditando(venda)
+    setModalAberto(true)
+  }
+
+  const fecharModal = () => {
+    setModalAberto(false)
+    setVendaEditando(null)
+  }
+
+  const onSucessoCRUD = () => {
+    carregarVendas() // Recarregar lista após sucesso
+    fecharModal()
+  }
+
+  const confirmarExclusao = async (venda: Venda) => {
+    const confirmacao = window.confirm(
+      `⚠️ ATENÇÃO!\n\nTem certeza que deseja EXCLUIR esta venda?\n\n` +
+      `🏢 Cliente: ${venda.NomeCli}\n` +
+      `📦 Produto: ${venda['Descr. Produto'] || 'N/A'}\n` +
+      `💰 Valor: ${formatarMoeda(calcularTotalVenda(venda.total, venda.Quantidade, venda['Preço Unitário']))}\n` +
+      `📋 NF: ${venda['Número da Nota Fiscal']}\n\n` +
+      `Esta ação não pode ser desfeita!`
     )
+
+    if (!confirmacao) return
+
+    setExcluindoVenda(venda.id)
+
+    try {
+      // Registrar auditoria ANTES da exclusão
+      if (user) {
+        await registrarAuditoria(venda.id, 'DELETE', user, venda, undefined)
+      }
+
+      // Excluir venda
+      const { error } = await supabase
+        .from('vendas')
+        .delete()
+        .eq('id', venda.id)
+
+      if (error) {
+        console.error('Erro ao excluir venda:', error)
+        alert('❌ Erro ao excluir venda. Tente novamente.')
+        return
+      }
+
+      alert('✅ Venda excluída com sucesso!')
+      carregarVendas() // Recarregar lista
+    } catch (error) {
+      console.error('Erro ao excluir venda:', error)
+      alert('❌ Erro interno ao excluir venda.')
+    } finally {
+      setExcluindoVenda(null)
+    }
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Vendas</h1>
-            <p className="text-gray-600 mt-1">
-              {user.role === 'admin_financeiro' 
-                ? 'Todas as vendas do sistema'
-                : 'Suas vendas registradas'
-              }
-            </p>
-          </div>
-          
-          <div className="mt-4 sm:mt-0 flex items-center space-x-3">
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center">
-              <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Nova Venda
-            </button>
-            <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center">
-              <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Exportar
-            </button>
-          </div>
+      {/* Cabeçalho */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Vendas</h1>
+          <p className="text-gray-600">
+            {totalVendas.toLocaleString()} venda{totalVendas !== 1 ? 's' : ''} encontrada{totalVendas !== 1 ? 's' : ''}
+            {user?.role === 'consultor_vendas' ? ' (suas vendas)' : ''}
+          </p>
         </div>
+
+        {/* Botão Nova Venda - Apenas para Admin */}
+        {isAdmin && (
+          <button
+            onClick={abrirModalCriacao}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Venda
+          </button>
+        )}
       </div>
 
       {/* Filtros */}
       <div className="bg-white rounded-xl shadow-sm p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Buscar
-            </label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Busca por texto */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
+              placeholder="Buscar por cliente, produto, representante ou NF..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Produto, cliente, nota fiscal..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Data
-            </label>
-            <input
-              type="text"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              placeholder="DD/MM/YYYY"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Cidade
-            </label>
-            <input
-              type="text"
-              value={cityFilter}
-              onChange={(e) => setCityFilter(e.target.value)}
-              placeholder="Nome da cidade..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          
-          <div className="flex items-end">
-            <button
-              onClick={limparFiltros}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center justify-center"
+
+          {/* Filtro por cidade */}
+          <div className="relative">
+            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <select
+              value={filtroCity}
+              onChange={(e) => setFiltroCity(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
             >
-              <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Limpar
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Lista de vendas */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        {error && (
-          <div className="p-4 bg-red-50 border-l-4 border-red-400">
-            <p className="text-red-700">{error}</p>
-          </div>
-        )}
-        
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Produto
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Cliente
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Data
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Quantidade
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Valor Unit.
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Nota Fiscal
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {vendas.map((venda) => (
-                <tr key={venda.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900 truncate max-w-xs">
-                      {venda['Descr. Produto'] || 'N/A'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{venda.NomeCli || 'N/A'}</div>
-                    <div className="text-sm text-gray-500">{venda.CIDADE}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatarData(venda['Data de Emissao da NF'])}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {venda.Quantidade}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatarMoeda(converterValor(venda['Preço Unitário'] || '0'))}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-semibold text-green-600">
-                      {formatarMoeda(calcularTotalVenda(
-                        venda.total,
-                        venda.Quantidade,
-                        venda['Preço Unitário']
-                      ))}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {venda['Número da Nota Fiscal']}
-                  </td>
-                </tr>
+              <option value="">Todas as cidades</option>
+              {cidades.map(cidade => (
+                <option key={cidade} value={cidade}>{cidade}</option>
               ))}
-            </tbody>
-          </table>
-        </div>
-
-        {vendas.length === 0 && !loading && (
-          <div className="text-center py-12">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <p className="text-gray-500 mt-2">Nenhuma venda encontrada</p>
+            </select>
           </div>
-        )}
+        </div>
       </div>
+
+      {/* Loading */}
+      {loading && (
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p className="text-gray-600 mt-2">Carregando vendas...</p>
+        </div>
+      )}
+
+      {/* Tabela de Vendas */}
+      {!loading && (
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Produto
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Cliente
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Data
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Qtd
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Preço Unit.
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Total
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    NF
+                  </th>
+                  {isAdmin && (
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Ações
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {vendas.map((venda) => (
+                  <tr key={venda.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {venda['Cód. Referência'] || 'N/A'}
+                      </div>
+                      <div className="text-sm text-gray-500 max-w-xs truncate">
+                        {venda['Descr. Produto'] || 'N/A'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{venda.NomeCli || 'N/A'}</div>
+                      <div className="text-sm text-gray-500">{venda.CIDADE}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatarData(venda['Data de Emissao da NF'])}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {venda.Quantidade}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatarMoeda(converterValor(venda['Preço Unitário'] || '0'))}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm font-semibold text-green-600">
+                        {formatarMoeda(calcularTotalVenda(
+                          venda.total,
+                          venda.Quantidade,
+                          venda['Preço Unitário']
+                        ))}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {venda['Número da Nota Fiscal']}
+                    </td>
+                    
+                    {/* Coluna de Ações - Apenas para Admin */}
+                    {isAdmin && (
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          {/* Botão Editar */}
+                          <button
+                            onClick={() => abrirModalEdicao(venda)}
+                            disabled={excluindoVenda === venda.id}
+                            className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors disabled:opacity-50"
+                            title="Editar venda"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+
+                          {/* Botão Excluir */}
+                          <button
+                            onClick={() => confirmarExclusao(venda)}
+                            disabled={excluindoVenda === venda.id}
+                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
+                            title="Excluir venda"
+                          >
+                            {excluindoVenda === venda.id ? (
+                              <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mensagem quando não há vendas */}
+          {vendas.length === 0 && !loading && (
+            <div className="text-center py-12">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <p className="text-gray-500 mt-2">
+                {debouncedSearchTerm || filtroCity 
+                  ? 'Nenhuma venda encontrada com os filtros aplicados' 
+                  : 'Nenhuma venda encontrada'
+                }
+              </p>
+              {isAdmin && !debouncedSearchTerm && !filtroCity && (
+                <button
+                  onClick={abrirModalCriacao}
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Criar primeira venda
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Paginação */}
-      {totalPages > 1 && (
+      {totalPages > 1 && !loading && (
         <div className="bg-white rounded-xl shadow-sm px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-700">
-              Página {currentPage} de {totalPages}
+              Página {currentPage} de {totalPages} • {totalVendas.toLocaleString()} registros
             </div>
-            
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                className="p-2 rounded-md border border-gray-300 text-gray-500 hover:text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Anterior
+                <ChevronLeft className="w-4 h-4" />
               </button>
-              
-              {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => handlePageChange(pageNum)}
-                    className={`px-3 py-1 text-sm rounded ${
-                      currentPage === pageNum
-                        ? 'bg-blue-600 text-white'
-                        : 'border border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-              
+
+              {/* Números das páginas */}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i
+                  if (pageNum > totalPages) return null
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
+                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-blue-600 text-white'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  )
+                })}
+              </div>
+
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                className="p-2 rounded-md border border-gray-300 text-gray-500 hover:text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Próxima
+                <ChevronRight className="w-4 h-4" />
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de CRUD */}
+      <ModalVenda
+        isOpen={modalAberto}
+        onClose={fecharModal}
+        onSuccess={onSucessoCRUD}
+        vendaParaEditar={vendaEditando}
+        modo={modoModal}
+      />
+
+      {/* Alerta de permissão para consultores */}
+      {!isAdmin && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div>
+              <h3 className="text-sm font-medium text-blue-800">
+                Visualização de Consultor
+              </h3>
+              <p className="text-sm text-blue-700 mt-1">
+                Você está visualizando apenas suas vendas. Para gerenciar todas as vendas, 
+                entre em contato com um administrador.
+              </p>
             </div>
           </div>
         </div>
@@ -389,3 +451,5 @@ const handlePageChange = (page: number) => {
     </div>
   )
 }
+
+

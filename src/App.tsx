@@ -12,6 +12,7 @@ import GestaoUsuarios from './pages/GestaoUsuarios'
 import ClientesPage from './pages/ClientesPage'
 import RelatoriosPage from './pages/RelatorioPage'  // ← Esta linha deve existir
 import TemplatesPage from './pages/TemplatesPage';
+import ImportacaoDados from './pages/ImportacaoDados.tsx'
 
 function App() {
   const [user, setUser] = useState<UserProfile | null>(null)
@@ -127,6 +128,7 @@ function App() {
  <Route path="/relatorios" element={<RelatoriosPage user={user} />} />
   <Route path="/templates" element={<TemplatesPage user={user} />} />
 <Route path="/gestao-usuarios" element={<GestaoUsuarios />} />
+<Route path="/admin/importacao" element={<ImportacaoDados />} />
 
 </Routes>
       </Layout>

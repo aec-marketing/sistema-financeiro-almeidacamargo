@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import type { UserProfile } from '../../lib/supabase'
-import { BookmarkPlus, Users } from 'lucide-react'
+import { BookmarkPlus, Upload, Users } from 'lucide-react'
 import { useUserAccess } from '../../hooks/useUserAccess' // Adicionar esta linha
 
 
@@ -63,7 +63,13 @@ export default function Layout({ user, onLogout, children }: LayoutProps) {
       name: 'Templates',
       href: '/templates',
       icon: <BookmarkPlus className="h-5 w-5" />
-    }
+    },
+    {
+  name: 'Importação',
+  href: '/admin/importacao',
+  icon: <Upload className="h-5 w-5" />,
+  adminOnly: true // Flag especial para indicar que é só para admin
+}
   ]
 
   // Item de Gestão de Usuários (apenas para admin)
@@ -73,10 +79,17 @@ export default function Layout({ user, onLogout, children }: LayoutProps) {
     icon: <Users className="h-5 w-5" />
   }
 
-  // Montar navegação final incluindo gestão de usuários se for admin
-  const navigation = isAdmin 
-    ? [...baseNavigation, gestaoUsuariosItem]
-    : baseNavigation
+  // Atualizar a lógica de navegação para considerar itens adminOnly:
+  const navigation = baseNavigation.filter(item => {
+    // Se item tem adminOnly=true, mostrar apenas para admin
+    if (item.adminOnly && !isAdmin) {
+      return false
+    }
+    return true
+  }).concat(
+    // Adicionar gestão de usuários se for admin
+    isAdmin ? [gestaoUsuariosItem] : []
+  )
 
   return (
     <div className="min-h-screen bg-gray-50">
