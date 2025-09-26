@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabase, type Cliente } from '../lib/supabase'
 import { Search, Building2, MapPin, Phone, FileText, Filter, RotateCcw, ChevronLeft, ChevronRight, TrendingUp, Calendar, DollarSign, X } from 'lucide-react'
 import ClienteBadgeMesclado from '../components/ClienteBadgeMesclado'
@@ -41,7 +42,7 @@ interface MetricasCliente {
 }
 
 // Hook personalizado para gerenciar clientes
-function useClientes() {
+function useClientes(vendedorFiltro?: string | null) {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -91,6 +92,20 @@ const carregarClientes = async (
       query = query.or(filters.join(','))
     }
 
+    // Se há filtro de vendedor, buscar apenas clientes que compraram desse vendedor
+    if (vendedorFiltro) {
+      // Buscar IDs dos clientes que compraram do vendedor
+      const { data: vendasVendedor } = await supabase
+        .from('vendas')
+        .select('NomeCli')
+        .eq('NomeRepr', vendedorFiltro)
+
+      if (vendasVendedor && vendasVendedor.length > 0) {
+        const nomesClientes = [...new Set(vendasVendedor.map(v => v.NomeCli))]
+        query = query.in('Nome', nomesClientes)
+      }
+    }
+
     // Aplicar paginação no banco
     const from = (page - 1) * perPage
     const to = from + perPage - 1
@@ -130,7 +145,7 @@ const carregarClientes = async (
   // Carregar clientes na montagem do componente
   useEffect(() => {
     carregarClientes(currentPage, searchTerm, cityFilter, stateFilter, itemsPerPage)
-  }, [cityFilter, currentPage, itemsPerPage, searchTerm, stateFilter])
+  }, [cityFilter, currentPage, itemsPerPage, searchTerm, stateFilter, vendedorFiltro])
 
   // Recarregar quando filtros mudarem (com debounce)
   useEffect(() => {
@@ -601,11 +616,15 @@ function ClienteCard({ cliente, onVerVendas }: {
 
 // Componente principal da página
 export default function ClientesPage({ user }: ClientesPageProps) {
-  const { 
-    clientes, 
-    loading, 
-    error, 
-    searchTerm, 
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const vendedorFiltro = searchParams.get('vendedor')
+
+  const {
+    clientes,
+    loading,
+    error,
+    searchTerm,
     setSearchTerm,
     cityFilter,
     setCityFilter,
@@ -618,7 +637,7 @@ export default function ClientesPage({ user }: ClientesPageProps) {
     itemsPerPage,
     setItemsPerPage,
     clearFilters
-  } = useClientes()
+  } = useClientes(vendedorFiltro)
 
   // Estado para controlar o modal de vendas
   const [modalVendasOpen, setModalVendasOpen] = useState(false)
@@ -637,7 +656,6 @@ export default function ClientesPage({ user }: ClientesPageProps) {
   }
 
   // Evita o warning do ESLint sobre user não usado
-  console.log('Usuário logado:', user?.nome || 'Desconhecido')
 
   if (error) {
     return (
@@ -669,6 +687,22 @@ export default function ClientesPage({ user }: ClientesPageProps) {
     <BotaoDuplicatas user={user} />
   </div>
 </div>
+
+      {/* Filtro de vendedor ativo */}
+      {vendedorFiltro && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-3">
+          <Building2 className="h-5 w-5 text-blue-600" />
+          <span className="text-sm text-blue-700">
+            Mostrando apenas clientes de: <strong>{vendedorFiltro}</strong>
+          </span>
+          <button
+            onClick={() => navigate('/clientes')}
+            className="ml-auto text-blue-600 hover:text-blue-800"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
 
       {/* Cards de estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import type { UserProfile } from '../../lib/supabase'
-import { BookmarkPlus } from 'lucide-react'
+import { BookmarkPlus, Users } from 'lucide-react'
+import { useUserAccess } from '../../hooks/useUserAccess' // Adicionar esta linha
+
+
 
 interface LayoutProps {
   user: UserProfile
@@ -12,8 +15,10 @@ interface LayoutProps {
 export default function Layout({ user, onLogout, children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
+  const { isAdmin } = useUserAccess() // Adicionar esta linha
 
-  const navigation = [
+  // Array base de navegação
+  const baseNavigation = [
     {
       name: 'Dashboard',
       href: '/',
@@ -55,11 +60,23 @@ export default function Layout({ user, onLogout, children }: LayoutProps) {
       )
     },
     {
-  name: 'Templates',
-  href: '/templates',
-  icon: <BookmarkPlus className="h-5 w-5" />
-}
+      name: 'Templates',
+      href: '/templates',
+      icon: <BookmarkPlus className="h-5 w-5" />
+    }
   ]
+
+  // Item de Gestão de Usuários (apenas para admin)
+  const gestaoUsuariosItem = {
+    name: 'Gestão de Usuários',
+    href: '/gestao-usuarios',
+    icon: <Users className="h-5 w-5" />
+  }
+
+  // Montar navegação final incluindo gestão de usuários se for admin
+  const navigation = isAdmin 
+    ? [...baseNavigation, gestaoUsuariosItem]
+    : baseNavigation
 
   return (
     <div className="min-h-screen bg-gray-50">

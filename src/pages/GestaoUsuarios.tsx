@@ -149,86 +149,101 @@ const GestaoUsuarios: React.FC = () => {
     }
   }
 
-  // Filtrar usuários
-  const usuariosFiltrados = usuarios.filter(usuario =>
-    usuario.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    usuario.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (usuario.representante?.nome.toLowerCase().includes(searchTerm.toLowerCase()))
-  )
-
+// Filtrar usuários - localizar por volta da linha 155
+const usuariosFiltrados = usuarios.filter(usuario =>
+  usuario.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  usuario.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  (usuario.representante?.nome?.toLowerCase().includes(searchTerm.toLowerCase()))
+)
   // Criar novo usuário
-  const criarUsuario = async () => {
-    try {
-      setSalvando(true)
-      
-      // Validações básicas
-      if (!novoUsuario.nome || !novoUsuario.email || !novoUsuario.senha) {
-        alert('Preencha todos os campos obrigatórios')
-        return
-      }
-
-      if (novoUsuario.role === 'consultor_vendas' && !novoUsuario.cd_representante) {
-        alert('Selecione um representante para vendedores')
-        return
-      }
-
-      console.log('Criando usuário:', novoUsuario)
-
-      // Criar usuário no Supabase Auth (usando função RPC se disponível)
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: novoUsuario.email,
-        password: novoUsuario.senha,
-        options: {
-          data: {
-            nome: novoUsuario.nome
-          }
-        }
-      })
-
-      if (authError) {
-        throw new Error(`Erro ao criar usuário: ${authError.message}`)
-      }
-
-      if (!authData.user) {
-        throw new Error('Usuário não foi criado')
-      }
-
-      // Criar perfil na tabela profiles
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: authData.user.id,
-          nome: novoUsuario.nome,
-          role: novoUsuario.role,
-          cd_representante: novoUsuario.cd_representante,
-          ativo: true
-        })
-
-      if (profileError) {
-        throw new Error(`Erro ao criar perfil: ${profileError.message}`)
-      }
-
-      // Recarregar dados
-      await carregarDados()
-
-      // Limpar formulário
-      setNovoUsuario({
-        nome: '',
-        email: '',
-        role: 'consultor_vendas',
-        senha: ''
-      })
-      setShowModalNovo(false)
-
-      alert('Usuário criado com sucesso!')
-
-    } catch (err) {
-      console.error('Erro ao criar usuário:', err)
-      alert(err instanceof Error ? err.message : 'Erro ao criar usuário')
-    } finally {
-      setSalvando(false)
+// Criar novo usuário
+const criarUsuario = async () => {
+  try {
+    setSalvando(true)
+    
+    // Validações básicas
+    if (!novoUsuario.nome || !novoUsuario.email || !novoUsuario.senha) {
+      alert('Preencha todos os campos obrigatórios')
+      return
     }
+
+    if (novoUsuario.role === 'consultor_vendas' && !novoUsuario.cd_representante) {
+      alert('Selecione um representante para vendedores')
+      return
+    }
+
+    // ⚠️ LIMITAÇÃO TÉCNICA: O Supabase Auth faz login automático ao criar usuário
+    // Isso vai deslogar você da conta admin temporariamente
+    const confirmar = window.confirm(
+      '⚠️ ATENÇÃO: Criar usuário via interface irá deslogar você temporariamente.\n\n' +
+      'Recomendamos criar usuários manualmente via Supabase Dashboard.\n\n' +
+      'Deseja continuar mesmo assim?'
+    )
+
+    if (!confirmar) {
+      setSalvando(false)
+      return
+    }
+
+    console.log('Criando usuário:', novoUsuario)
+
+    // MÉTODO ATUAL - CAUSA LOGOUT DO ADMIN
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: novoUsuario.email,
+      password: novoUsuario.senha,
+      options: {
+        data: {
+          nome: novoUsuario.nome
+        }
+      }
+    })
+
+    if (authError) {
+      throw new Error(`Erro ao criar usuário: ${authError.message}`)
+    }
+
+    if (!authData.user) {
+      throw new Error('Usuário não foi criado')
+    }
+
+    // Criar perfil na tabela profiles
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: authData.user.id,
+        nome: novoUsuario.nome,
+        role: novoUsuario.role,
+        cd_representante: novoUsuario.cd_representante,
+        ativo: true
+      })
+
+    if (profileError) {
+      throw new Error(`Erro ao criar perfil: ${profileError.message}`)
+    }
+
+    alert(
+      'Usuário criado com sucesso!\n\n' +
+      '⚠️ VOCÊ FOI DESLOGADO. Faça login novamente com sua conta admin.\n\n' +
+      `Email criado: ${novoUsuario.email}\n` +
+      `Senha: ${novoUsuario.senha}`
+    )
+
+    // Limpar formulário
+    setNovoUsuario({
+      nome: '',
+      email: '',
+      role: 'consultor_vendas',
+      senha: ''
+    })
+    setShowModalNovo(false)
+
+  } catch (err) {
+    console.error('Erro ao criar usuário:', err)
+    alert(err instanceof Error ? err.message : 'Erro ao criar usuário')
+  } finally {
+    setSalvando(false)
   }
+}
 
   // Ativar/Desativar usuário
   const toggleUsuarioStatus = async (usuarioId: string, novoStatus: boolean) => {
@@ -256,6 +271,56 @@ const GestaoUsuarios: React.FC = () => {
     } catch (err) {
       console.error('Erro ao atualizar status:', err)
       alert(err instanceof Error ? err.message : 'Erro ao atualizar status')
+    }
+  }
+
+  // Editar usuário
+  const editarUsuario = async () => {
+    if (!usuarioEdicao) return
+
+    try {
+      setSalvando(true)
+
+      // Validações básicas
+      if (!usuarioEdicao.nome) {
+        alert('O nome é obrigatório')
+        return
+      }
+
+      if (usuarioEdicao.role === 'consultor_vendas' && !usuarioEdicao.cd_representante) {
+        alert('Selecione um representante para vendedores')
+        return
+      }
+
+      // Atualizar perfil na tabela profiles
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          nome: usuarioEdicao.nome,
+          role: usuarioEdicao.role,
+          cd_representante: usuarioEdicao.cd_representante,
+          ativo: usuarioEdicao.ativo
+        })
+        .eq('id', usuarioEdicao.id)
+
+      if (profileError) {
+        throw new Error(`Erro ao atualizar perfil: ${profileError.message}`)
+      }
+
+      // Recarregar dados
+      await carregarDados()
+
+      // Fechar modal
+      setShowModalEdicao(false)
+      setUsuarioEdicao(null)
+
+      alert('Usuário atualizado com sucesso!')
+
+    } catch (err) {
+      console.error('Erro ao editar usuário:', err)
+      alert(err instanceof Error ? err.message : 'Erro ao editar usuário')
+    } finally {
+      setSalvando(false)
     }
   }
 
@@ -598,6 +663,127 @@ const GestaoUsuarios: React.FC = () => {
                   className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
                 >
                   {salvando ? 'Criando...' : 'Criar Usuário'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Edição de Usuário */}
+        {showModalEdicao && usuarioEdicao && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+              <div className="p-6 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Editar Usuário</h3>
+                <p className="text-sm text-gray-500 mt-1">{usuarioEdicao.email}</p>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nome Completo *
+                  </label>
+                  <input
+                    type="text"
+                    value={usuarioEdicao.nome}
+                    onChange={(e) => setUsuarioEdicao(prev => prev ? {...prev, nome: e.target.value} : null)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Ex: João Silva"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={usuarioEdicao.email || 'Email não disponível'}
+                    disabled
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed"
+                    title="O email não pode ser alterado"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    ⚠️ O email não pode ser alterado por limitações do Supabase
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tipo de Usuário *
+                  </label>
+                  <select
+                    value={usuarioEdicao.role}
+                    onChange={(e) => setUsuarioEdicao(prev => prev ? {
+                      ...prev,
+                      role: e.target.value as 'admin_financeiro' | 'consultor_vendas',
+                      cd_representante: e.target.value === 'admin_financeiro' ? undefined : prev.cd_representante
+                    } : null)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="consultor_vendas">Consultor de Vendas</option>
+                    <option value="admin_financeiro">Admin Financeiro</option>
+                  </select>
+                </div>
+
+                {usuarioEdicao.role === 'consultor_vendas' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Representante *
+                    </label>
+                    <select
+                      value={usuarioEdicao.cd_representante || ''}
+                      onChange={(e) => setUsuarioEdicao(prev => prev ? {
+                        ...prev,
+                        cd_representante: e.target.value ? Number(e.target.value) : undefined
+                      } : null)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Selecione um representante...</option>
+                      {representantes.map((repr) => (
+                        <option key={repr.codigo} value={repr.codigo}>
+                          {repr.nome} (Cód: {repr.codigo}) - {repr.totalVendas} vendas
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="flex items-center space-x-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={usuarioEdicao.ativo}
+                      onChange={(e) => setUsuarioEdicao(prev => prev ? {...prev, ativo: e.target.checked} : null)}
+                      className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      Usuário ativo
+                    </span>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1 ml-8">
+                    Usuários inativos não conseguem fazer login no sistema
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowModalEdicao(false)
+                    setUsuarioEdicao(null)
+                  }}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  disabled={salvando}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={editarUsuario}
+                  disabled={salvando}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {salvando ? 'Salvando...' : 'Salvar Alterações'}
                 </button>
               </div>
             </div>

@@ -20,7 +20,6 @@ export function calcularTotalVenda(
 
   if (qtd > 0 && preco > 0) {
     const calculado = qtd * preco
-    console.log(`📊 Total calculado: ${qtd} × ${preco} = ${calculado}`) // Debug
     return calculado
   }
 

@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, type UserProfile } from '../../lib/supabase'
 
 interface LoginFormProps {
-  onSuccess: () => void
+  onSuccess: (userData: UserProfile) => void
 }
 
 export default function LoginForm({ onSuccess }: LoginFormProps) {
@@ -40,7 +40,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
           return
         }
 
-        onSuccess()
+        onSuccess(profile)
       }
     } catch (err) {
       setError('Erro inesperado. Tente novamente.')

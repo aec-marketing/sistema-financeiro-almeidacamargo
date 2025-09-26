@@ -123,7 +123,8 @@ export const useUserAccess = (): UserAccess => {
           // Roles básicos
           isAdmin,
           isVendedor,
-          
+            isAtivo: profile?.ativo ?? false, // Adicionar esta linha
+
           // Permissões detalhadas
           canRead: true, // Todos podem ler (com filtros)
           canCreate: isAdmin, // Apenas admin pode criar
