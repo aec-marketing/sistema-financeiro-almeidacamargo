@@ -18,6 +18,29 @@ import {
 } from 'lucide-react'
 import { useUserAccess } from '../hooks/useUserAccess'
 
+// Adicione após os imports e antes do componente
+const formatarCriterio = (grupo: GrupoDuplicata) => {
+  const labels = {
+    cnpj_cidade: 'CNPJ + Cidade',
+    nome_cidade: 'Nome + Cidade',
+    similar: 'Similaridade de Nome'
+  }
+
+  // Extrair informações legíveis da chave
+  let detalhes = ''
+  if (grupo.criterio === 'cnpj_cidade') {
+    const partes = grupo.chave.split('_')
+    const cidade = partes[partes.length - 1]
+    detalhes = ` em ${cidade}`
+  } else if (grupo.criterio === 'nome_cidade') {
+    const partes = grupo.chave.split('_')
+    const cidade = partes[partes.length - 1]
+    detalhes = ` em ${cidade}`
+  }
+
+  return `${labels[grupo.criterio]}${detalhes}`
+}
+
 export default function AdminDuplicatas() {
   const { user } = useUserAccess()
   const [grupos, setGrupos] = useState<GrupoDuplicata[]>([])
@@ -321,7 +344,7 @@ export default function AdminDuplicatas() {
                       <strong>Primeiro cliente:</strong> {grupo.clientes[0]?.Nome}
                     </p>
                     <p className="text-xs text-gray-500">
-                      Critério: {grupo.criterio} | Chave: {grupo.chave}
+                      {formatarCriterio(grupo)}
                     </p>
                   </div>
 

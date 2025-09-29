@@ -1,5 +1,5 @@
 import { supabase, type Cliente } from '../lib/supabase'
-import { salvarMesclagem } from './mesclagem-storage'
+import { salvarMesclagem, estaEmMesclagem } from './mesclagem-storage'
 
 // Tipos específicos para duplicatas
 export interface GrupoDuplicata {
@@ -90,11 +90,13 @@ export async function detectarDuplicatas(): Promise<GrupoDuplicata[]> {
 
     if (!clientes) return []
 
+    const clientesAtivos = clientes.filter(cliente => !estaEmMesclagem(cliente.id))
+
     const grupos = new Map<string, Cliente[]>()
     const gruposDetectados: GrupoDuplicata[] = []
 
     // 1. DETECÇÃO POR CNPJ + CIDADE (mais confiável - 95%)
-    clientes.forEach(cliente => {
+    clientesAtivos.forEach(cliente => {
   if (cliente.CNPJ && cliente['Município']) {
     const cnpjLimpo = cliente.CNPJ.replace(/[^\d]/g, '')
     const chave = `cnpj_${cnpjLimpo}_${normalizar(cliente['Município'])}`
@@ -121,8 +123,8 @@ export async function detectarDuplicatas(): Promise<GrupoDuplicata[]> {
 
     // 2. DETECÇÃO POR NOME EXATO + CIDADE (confiável - 85%)
     grupos.clear()
-    
-    clientes.forEach(cliente => {
+
+    clientesAtivos.forEach(cliente => {
       const nomeNormalizado = normalizar(cliente.Nome || '')
       const cidadeNormalizada = normalizar(cliente.Município || '')
       
@@ -156,7 +158,7 @@ export async function detectarDuplicatas(): Promise<GrupoDuplicata[]> {
     })
 
     // 3. DETECÇÃO POR SIMILARIDADE DE NOME (menos confiável - 70%)
-    const clientesRestantes = clientes.filter(cliente => 
+    const clientesRestantes = clientesAtivos.filter(cliente => 
       !gruposDetectados.some(grupo => 
         grupo.clientes.some(c => c.id === cliente.id)
       )
