@@ -95,7 +95,7 @@ export type Venda = {
 
 export type UserProfile = {
   id: string
-  role: 'admin_financeiro' | 'consultor_vendas'
+  role: 'admin_financeiro' | 'consultor_vendas' | 'observador' // ADICIONE 'observador'
   nome: string
   cd_representante?: number
   ativo: boolean

@@ -1,11 +1,12 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase, type UserProfile } from '../../lib/supabase'
-
 interface LoginFormProps {
   onSuccess: (userData: UserProfile) => void
 }
 
 export default function LoginForm({ onSuccess }: LoginFormProps) {
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -39,8 +40,25 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
           setError('Perfil de usuário não encontrado. Contate o administrador.')
           return
         }
+// ADICIONE AQUI:
+console.log('🔍 Login - Perfil:', profile);
+console.log('🔍 Login - Role:', profile.role);
 
-        onSuccess(profile)
+        // Redirecionar baseado no role
+if (profile?.role === 'observador') {
+  console.log('✅ Redirecionando para /dashboard-observador');
+  onSuccess(profile) // MOVER PARA AQUI
+  navigate('/dashboard-observador')
+} else if (profile?.role === 'admin_financeiro') {
+  onSuccess(profile) // MOVER PARA AQUI
+  navigate('/dashboard')
+} else {
+  onSuccess(profile) // MOVER PARA AQUI
+  navigate('/dashboard')
+}
+
+onSuccess(profile)
+console.log('✅ onSuccess executado'); // ADICIONE ESTA LINHA
       }
     } catch (err) {
       setError('Erro inesperado. Tente novamente.')
