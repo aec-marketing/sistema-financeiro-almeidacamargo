@@ -55,7 +55,7 @@ const carregarClientes = async (
   try {
     setLoading(true)
     setError(null)
-    
+
     // Query com paginação no banco
     let query = supabase
       .from('clientes')
@@ -102,7 +102,6 @@ const carregarClientes = async (
     const { data, error, count } = await query
 
     if (error) {
-      console.error('Erro ao carregar clientes:', error)
       setError('Erro ao carregar clientes')
       return
     }
@@ -114,8 +113,8 @@ const carregarClientes = async (
     setTotalClientes(count || 0) // Total do banco
     setTotalPages(Math.ceil((count || 0) / perPage)) // Páginas baseadas no total
       
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {
-    console.error('Erro:', err)
     setError('Erro inesperado ao carregar clientes')
   } finally {
     setLoading(false)
@@ -199,10 +198,6 @@ useEffect(() => {
   const carregarVendasCliente = async () => {
     try {
       setLoading(true)
-      
-      console.log('Buscando vendas para cliente ID:', cliente.id)
-      console.log('Buscando vendas para cliente Entidade:', cliente.Entidade)
-      console.log('Nome do cliente:', cliente.Nome)
 
       // Teste com Entidade primeiro, pois pode ser o campo correto
       const { data: vendasData, error } = await supabase
@@ -224,7 +219,6 @@ useEffect(() => {
           .limit(50) // Últimas 50 vendas
 
         if (error) {
-          console.error('Erro ao carregar vendas do cliente:', error)
           return
         }
 
@@ -283,8 +277,7 @@ const ultimaCompra = vendasOrdenadas[vendasOrdenadas.length - 1]['Data de Emissa
           })
         }
 
-      } catch (error) {
-        console.error('Erro ao carregar dados do cliente:', error)
+      
       } finally {
         setLoading(false)
       }
