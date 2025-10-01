@@ -71,6 +71,7 @@ export interface MetricasGlobais {
 export interface ProdutoVenda {
   descricao: string;
   codigoReferencia: string;
+  marca: string;
   totalVendido: number;
   faturamento: number;
   percentualTotal: number;

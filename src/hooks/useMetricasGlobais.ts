@@ -50,7 +50,7 @@ export function useMetricasGlobais(
       // 1. Buscar vendas do mês atual
       const { data: vendasMes, error: vendasMesError } = await supabase
         .from('vendas')
-        .select('total, cdCli, NomeCli, CIDADE, "Descr. Produto", "Cód. Referência"')
+        .select('total, cdCli, NomeCli, CIDADE, "Descr. Produto", "Cód. Referência", MARCA')
         .like('"Data de Emissao da NF"', `%/${String(mes).padStart(2, '0')}/${ano}`);
 
       if (vendasMesError) throw vendasMesError;
@@ -121,6 +121,7 @@ export function useMetricasGlobais(
       const produtosMap = new Map<string, {
         descricao: string;
         codigoReferencia: string;
+        marca: string;
         totalVendido: number;
         faturamento: number;
         numeroVendas: number;
@@ -138,6 +139,7 @@ export function useMetricasGlobais(
           produtosMap.set(chave, {
             descricao: venda['Descr. Produto'] || 'Produto sem descrição',
             codigoReferencia: venda['Cód. Referência'] || 'N/A',
+            marca: venda.MARCA || 'Sem marca',
             totalVendido: 1,
             faturamento: Number(venda.total) || 0,
             numeroVendas: 1,
@@ -150,7 +152,15 @@ export function useMetricasGlobais(
         percentualTotal: faturamentoTotal > 0 ? (p.faturamento / faturamentoTotal) * 100 : 0,
       }));
 
-      const top5Produtos = ordenarPor(produtosArray, 'faturamento', 'desc').slice(0, 5);
+      // Ordenar primeiro por número de vendas, depois por faturamento como desempate
+      const top5Produtos = produtosArray
+        .sort((a, b) => {
+          if (b.numeroVendas !== a.numeroVendas) {
+            return b.numeroVendas - a.numeroVendas; // Mais vendas primeiro
+          }
+          return b.faturamento - a.faturamento; // Em caso de empate, maior faturamento
+        })
+        .slice(0, 5);
       setTopProdutos(top5Produtos);
 
       // 11. Calcular TOP 5 CLIENTES

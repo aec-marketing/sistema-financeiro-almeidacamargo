@@ -85,6 +85,28 @@ const VendedorDashboard: React.FC = () => {
     return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
   })
 
+  // Gerar lista de meses disponíveis (últimos 6 meses incluindo o atual)
+  const mesesDisponiveis = React.useMemo(() => {
+    const hoje = new Date()
+    const mesAtual = hoje.getMonth() + 1 // 1-12
+    const anoAtual = hoje.getFullYear()
+
+    const meses = []
+    for (let i = 5; i >= 0; i--) {
+      const data = new Date(anoAtual, mesAtual - 1 - i, 1)
+      const mes = data.getMonth() + 1
+      const ano = data.getFullYear()
+
+      meses.push({
+        valor: `${ano}-${String(mes).padStart(2, '0')}`,
+        label: data.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+          .replace(/^\w/, (c) => c.toUpperCase()) // Capitalizar primeira letra
+      })
+    }
+
+    return meses
+  }, [])
+
   const [mostrarMaioresVendas, setMostrarMaioresVendas] = useState(false)
   const [minhasVendas, setMinhasVendas] = useState<VendaVendedor[]>([])
   const [maioresVendasMes, setMaioresVendasMes] = useState<VendaVendedor[]>([])
@@ -499,10 +521,11 @@ const VendedorDashboard: React.FC = () => {
               onChange={(e) => setMesSelecionado(e.target.value)}
               className="mb-2 px-3 py-1 rounded bg-white bg-opacity-20 text-white text-sm border border-white border-opacity-30"
             >
-              <option value="2025-09" className="text-gray-900">Setembro 2025</option>
-              <option value="2025-08" className="text-gray-900">Agosto 2025</option>
-              <option value="2025-07" className="text-gray-900">Julho 2025</option>
-              <option value="2025-06" className="text-gray-900">Junho 2025</option>
+              {mesesDisponiveis.map((mes) => (
+                <option key={mes.valor} value={mes.valor} className="text-gray-900">
+                  {mes.label}
+                </option>
+              ))}
             </select>
 
             <div className="text-green-100 text-sm">Meta do Mês</div>

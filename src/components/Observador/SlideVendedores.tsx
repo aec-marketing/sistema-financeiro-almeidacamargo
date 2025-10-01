@@ -15,6 +15,7 @@ interface SlideVendedoresProps {
   anoAtual: number;
   paginaAtual?: number;
   vendedoresPorPagina?: number;
+  modoPrivado?: boolean;
 }
 
 /**
@@ -27,6 +28,7 @@ export function SlideVendedores({
   anoAtual,
   paginaAtual = 0,
   vendedoresPorPagina = 6,
+  modoPrivado = false,
 }: SlideVendedoresProps) {
   
   // Calcular vendedores da página atual
@@ -83,6 +85,7 @@ export function SlideVendedores({
           <CardVendedor
             key={vendedor.id}
             vendedor={vendedor}
+            modoPrivado={modoPrivado}
           />
         ))}
       </div>

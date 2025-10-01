@@ -8,12 +8,13 @@ import { HeaderObservador } from '../components/Observador/HeaderObservador';
 import { ControlesSlideshow } from '../components/Observador/ControlesSlideshow';
 import { SlideVendedores } from '../components/Observador/SlideVendedores';
 import { SlideMetricasGlobais } from '../components/Observador/SlideMetricasGlobais';
-import { SlideAnaliseRegional } from '../components/Observador/SlideAnaliseRegional';
+// import { SlideAnaliseRegional } from '../components/Observador/SlideAnaliseRegional'; // DESABILITADO TEMPORARIAMENTE
+import { SlideMarcas } from '../components/Observador/SlideMarcas';
 import { useSlideshow } from '../hooks/useSlideshow';
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import { useVendedoresPerformance } from '../hooks/useVendedoresPerformance';
 import { useMetricasGlobais } from '../hooks/useMetricasGlobais';
-import { useAnaliseRegional } from '../hooks/useAnaliseRegional';
+// import { useAnaliseRegional } from '../hooks/useAnaliseRegional'; // DESABILITADO TEMPORARIAMENTE
 import { supabase } from '../lib/supabase';
 
 /**
@@ -22,6 +23,7 @@ import { supabase } from '../lib/supabase';
  */
 export function DashboardObservador() {
   const navigate = useNavigate();
+  const [modoPrivado, setModoPrivado] = useState(false);
 
   // Data atual para filtros
   const [dataAtual] = useState(new Date());
@@ -36,6 +38,11 @@ export function DashboardObservador() {
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
     }
+  };
+
+  // Função para alternar modo privado
+  const toggleModoPrivado = () => {
+    setModoPrivado(prev => !prev);
   };
 
   // Hook de auto-refresh (30 minutos)
@@ -60,18 +67,21 @@ export function DashboardObservador() {
     error: errorMetricas,
   } = useMetricasGlobais(mesAtual, anoAtual, contadorRefresh);
 
-  // Buscar análise regional
-  const {
-    cidadesVenda,
-    crescimentoCidades,
-    isLoading: isLoadingRegional,
-    error: errorRegional,
-  } = useAnaliseRegional(mesAtual, anoAtual, contadorRefresh);
+  // ====================================
+  // ANÁLISE REGIONAL - DESABILITADO TEMPORARIAMENTE
+  // Descomente o bloco abaixo para reativar
+  // ====================================
+  // const {
+  //   cidadesVenda,
+  //   crescimentoCidades,
+  //   isLoading: isLoadingRegional,
+  //   error: errorRegional,
+  // } = useAnaliseRegional(mesAtual, anoAtual, contadorRefresh);
 
   // Calcular número de slides (vendedores podem ter múltiplas páginas)
   const vendedoresPorPagina = 6;
   const paginasVendedores = Math.ceil(vendedores.length / vendedoresPorPagina);
-  const totalSlides = paginasVendedores + 2; // +2 para métricas e regional
+  const totalSlides = paginasVendedores + 2; // +2 para métricas e marcas (regional desabilitado)
 
   // Hook de slideshow
   const {
@@ -89,8 +99,8 @@ export function DashboardObservador() {
   const paginaVendedoresAtual = slideAtual < paginasVendedores ? slideAtual : 0;
 
   // Estados de carregamento e erro
-  const isLoading = isLoadingVendedores || isLoadingMetricas || isLoadingRegional;
-  const hasError = errorVendedores || errorMetricas || errorRegional;
+  const isLoading = isLoadingVendedores || isLoadingMetricas; // || isLoadingRegional (desabilitado)
+  const hasError = errorVendedores || errorMetricas; // || errorRegional (desabilitado)
 
   // Entrar em modo tela cheia ao montar (opcional)
   useEffect(() => {
@@ -132,7 +142,7 @@ export function DashboardObservador() {
               Erro ao Carregar Dados
             </h2>
             <p className="text-gray-600 mb-4">
-              {errorVendedores?.message || errorMetricas?.message || errorRegional?.message}
+              {errorVendedores?.message || errorMetricas?.message} {/* || errorRegional?.message (desabilitado) */}
             </p>
             <button
               onClick={() => window.location.reload()}
@@ -154,6 +164,7 @@ export function DashboardObservador() {
           anoAtual={anoAtual}
           paginaAtual={paginaVendedoresAtual}
           vendedoresPorPagina={vendedoresPorPagina}
+          modoPrivado={modoPrivado}
         />
       );
     }
@@ -167,21 +178,37 @@ export function DashboardObservador() {
           topClientes={topClientes}
           mesAtual={mesAtual}
           anoAtual={anoAtual}
+          modoPrivado={modoPrivado}
         />
       );
     }
 
-    // Slide de análise regional
+    // Slide de marcas (último slide ativo)
     if (slideAtual === paginasVendedores + 1) {
       return (
-        <SlideAnaliseRegional
-          cidadesVenda={cidadesVenda}
-          crescimentoCidades={crescimentoCidades}
-          mesAtual={mesAtual}
-          anoAtual={anoAtual}
+        <SlideMarcas
+          mes={mesAtual}
+          ano={anoAtual}
+          modoPrivado={modoPrivado}
         />
       );
     }
+
+    // ====================================
+    // SLIDE DE ANÁLISE REGIONAL - DESABILITADO TEMPORARIAMENTE
+    // Descomente o bloco abaixo para reativar
+    // IMPORTANTE: Ajuste também totalSlides para +3 e descomente o hook no início do arquivo
+    // ====================================
+    // if (slideAtual === paginasVendedores + 2) {
+    //   return (
+    //     <SlideAnaliseRegional
+    //       cidadesVenda={cidadesVenda}
+    //       crescimentoCidades={crescimentoCidades}
+    //       mesAtual={mesAtual}
+    //       anoAtual={anoAtual}
+    //     />
+    //   );
+    // }
 
     // Fallback (não deveria chegar aqui)
     return null;
@@ -195,6 +222,8 @@ export function DashboardObservador() {
         ultimaAtualizacao={ultimaAtualizacao}
         mostrarLogo={true}
         onLogout={handleLogout}
+        modoPrivado={modoPrivado}
+        onToggleModoPrivado={toggleModoPrivado}
       />
 
       {/* Área de Conteúdo (Slides) */}

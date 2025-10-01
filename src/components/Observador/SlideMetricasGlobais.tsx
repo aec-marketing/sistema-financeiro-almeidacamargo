@@ -20,6 +20,7 @@ interface SlideMetricasGlobaisProps {
   topClientes: ClienteCompra[];
   mesAtual: number;
   anoAtual: number;
+  modoPrivado?: boolean;
 }
 
 /**
@@ -32,6 +33,7 @@ export function SlideMetricasGlobais({
   topClientes,
   mesAtual,
   anoAtual,
+  modoPrivado = false,
 }: SlideMetricasGlobaisProps) {
 
   // Função auxiliar para ícone de tendência
@@ -77,9 +79,15 @@ export function SlideMetricasGlobais({
         {/* Faturamento Total */}
         <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
           <div className="text-sm text-gray-600 mb-2">Faturamento Total</div>
-          <div className="text-3xl font-bold text-gray-800 mb-2">
-            {formatarMoedaCompacta(metricas.faturamentoTotal)}
-          </div>
+          {!modoPrivado ? (
+            <div className="text-3xl font-bold text-gray-800 mb-2">
+              {formatarMoedaCompacta(metricas.faturamentoTotal)}
+            </div>
+          ) : (
+            <div className="text-3xl font-bold text-gray-400 mb-2">
+              [Privado]
+            </div>
+          )}
           <div className="flex items-center gap-2 text-sm">
             <span className="text-gray-500">vs mês anterior:</span>
             <IconeTendencia valor={metricas.comparativoMesAnterior.faturamento} />
@@ -113,9 +121,15 @@ export function SlideMetricasGlobais({
         {/* Ticket Médio */}
         <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500">
           <div className="text-sm text-gray-600 mb-2">Ticket Médio</div>
-          <div className="text-3xl font-bold text-gray-800 mb-2">
-            {formatarMoeda(metricas.ticketMedio)}
-          </div>
+          {!modoPrivado ? (
+            <div className="text-3xl font-bold text-gray-800 mb-2">
+              {formatarMoeda(metricas.ticketMedio)}
+            </div>
+          ) : (
+            <div className="text-3xl font-bold text-gray-400 mb-2">
+              [Privado]
+            </div>
+          )}
           <div className="text-sm text-gray-500">
             por venda
           </div>
@@ -149,14 +163,25 @@ export function SlideMetricasGlobais({
                 {/* Barra e Informações */}
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-700 truncate">
-                      {produto.descricao}
-                    </span>
-                    <span className="text-sm font-bold text-gray-800 ml-2">
-                      {formatarMoeda(produto.faturamento)}
-                    </span>
+                    <div className="flex-1 min-w-0 mr-2">
+                      <div className="text-sm font-medium text-gray-700 truncate">
+                        {produto.descricao}
+                      </div>
+                      <div className="text-xs text-blue-600 font-semibold mt-0.5">
+                        {produto.marca}
+                      </div>
+                    </div>
+                    {!modoPrivado ? (
+                      <span className="text-sm font-bold text-gray-800 flex-shrink-0">
+                        {formatarMoeda(produto.faturamento)}
+                      </span>
+                    ) : (
+                      <span className="text-sm font-bold text-blue-600 flex-shrink-0">
+                        {formatarPercentual(produto.percentualTotal, 1)}
+                      </span>
+                    )}
                   </div>
-                  
+
                   {/* Barra de progresso */}
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
@@ -164,7 +189,7 @@ export function SlideMetricasGlobais({
                       style={{ width: `${produto.percentualTotal}%` }}
                     />
                   </div>
-                  
+
                   <div className="text-xs text-gray-500 mt-1">
                     {formatarPercentual(produto.percentualTotal, 1)} do total • {produto.numeroVendas} vendas
                   </div>
@@ -216,9 +241,15 @@ export function SlideMetricasGlobais({
 
                   {/* Valores */}
                   <div className="text-right ml-2">
-                    <div className="text-lg font-bold text-gray-800">
-                      {formatarMoeda(cliente.faturamento)}
-                    </div>
+                    {!modoPrivado ? (
+                      <div className="text-lg font-bold text-gray-800">
+                        {formatarMoeda(cliente.faturamento)}
+                      </div>
+                    ) : (
+                      <div className="text-lg font-bold text-purple-600">
+                        [Privado]
+                      </div>
+                    )}
                     <div className="text-xs text-gray-500">
                       {cliente.numeroCompras} compras
                     </div>
@@ -226,9 +257,11 @@ export function SlideMetricasGlobais({
                 </div>
 
                 {/* Ticket Médio */}
-                <div className="text-xs text-gray-600 ml-11">
-                  Ticket médio: {formatarMoeda(cliente.ticketMedio)}
-                </div>
+                {!modoPrivado && (
+                  <div className="text-xs text-gray-600 ml-11">
+                    Ticket médio: {formatarMoeda(cliente.ticketMedio)}
+                  </div>
+                )}
               </div>
             ))}
           </div>

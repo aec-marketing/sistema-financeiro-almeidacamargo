@@ -16,14 +16,17 @@ import {
 interface CardVendedorProps {
   vendedor: VendedorPerformance;
   destacarTop3?: boolean;
+  modoPrivado?: boolean;
 }
 
 /**
  * Card individual exibindo performance de um vendedor
  * Mostra metas mensal/anual e top 3 marcas
  */
-export function CardVendedor({ 
-  vendedor}: CardVendedorProps) {
+export function CardVendedor({
+  vendedor,
+  modoPrivado = false
+}: CardVendedorProps) {
   
   const iniciais = gerarIniciais(vendedor.nome);
 
@@ -77,7 +80,7 @@ export function CardVendedor({
           percentual={vendedor.progressoMensal}
           label="Meta Mensal"
           altura="grande"
-          mostrarValores={true}
+          mostrarValores={!modoPrivado}
           mostrarPercentual={true}
         />
       </div>
@@ -111,10 +114,12 @@ export function CardVendedor({
 
               {/* Valor e Percentual */}
               <div className="text-right">
-                <div className="text-sm font-bold text-gray-800">
-                  {formatarMoeda(marca.total)}
-                </div>
-                <div className="text-xs text-gray-500">
+                {!modoPrivado && (
+                  <div className="text-sm font-bold text-gray-800">
+                    {formatarMoeda(marca.total)}
+                  </div>
+                )}
+                <div className={`text-xs ${modoPrivado ? 'text-sm font-bold' : ''} text-gray-500`}>
                   {formatarPercentual(marca.percentual, 0)}
                 </div>
               </div>
