@@ -63,7 +63,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
     return (
       <div className={`flex items-center justify-center p-4 ${className}`}>
         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-        <span className="ml-2 text-gray-600">Verificando permissões...</span>
+        <span className="ml-2 text-gray-600 dark:text-gray-300">Verificando permissões...</span>
       </div>
     )
   }
@@ -165,7 +165,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
                 {requirePermission && 'Você não tem permissão para esta ação'}
                 {!requireAdmin && !requireVendedor && !requireRole && !requirePermission && 'Permissões insuficientes'}
               </p>
-              <div className="mt-2 text-xs text-orange-600">
+              <div className="mt-2 text-xs text-orange-600 dark:text-orange-400">
                 Seu perfil atual: <span className="font-medium capitalize">
                   {user.role.replace('_', ' ')}
                 </span>
@@ -234,11 +234,11 @@ export const UserInfo: React.FC<{ className?: string }> = ({ className = '' }) =
     <div className={`bg-blue-50 border border-blue-200 rounded-lg p-3 ${className}`}>
       <div className="flex items-center space-x-3">
         <div className="flex-shrink-0">
-          <Users className="h-5 w-5 text-blue-600" />
+          <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
         </div>
         <div className="flex-1">
           <h4 className="text-sm font-medium text-blue-800">{user.nome}</h4>
-          <div className="text-xs text-blue-600 space-y-1">
+          <div className="text-xs text-blue-600 dark:text-blue-400 space-y-1">
             <div>Role: <span className="font-medium">{user.role}</span></div>
             {isVendedor && representanteName && (
               <div>Representante: <span className="font-medium">{representanteName}</span></div>

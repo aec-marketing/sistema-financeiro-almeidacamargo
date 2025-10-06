@@ -296,11 +296,11 @@ export default function ImportacaoDados() {
         {/* Cabeçalho */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-              <Upload className="w-7 h-7 text-blue-600" />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+              <Upload className="w-7 h-7 text-blue-600 dark:text-blue-400" />
               Importação de Dados
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-gray-600 dark:text-gray-300 mt-1">
               Atualize as bases de dados com arquivos CSV do ERP
             </p>
           </div>
@@ -308,7 +308,7 @@ export default function ImportacaoDados() {
           {estadoUpload.tipo && (
             <button
               onClick={resetarUpload}
-              className="inline-flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 rounded-lg transition-colors"
             >
               <X className="w-4 h-4" />
               Cancelar Importação
@@ -325,7 +325,7 @@ export default function ImportacaoDados() {
               return (
                 <div
                   key={tipo}
-                  className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
+                  className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-shadow"
                 >
                   <div className="p-6">
                     <div className="flex items-center gap-4 mb-4">
@@ -333,17 +333,17 @@ export default function ImportacaoDados() {
                         <IconeComponente className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                           {config.titulo}
                         </h3>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
                           {config.descricao}
                         </p>
                       </div>
                     </div>
 
                     <div className="mb-4">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                         Colunas esperadas:
                       </h4>
                       <div className="flex flex-wrap gap-1">
@@ -356,7 +356,7 @@ export default function ImportacaoDados() {
                           </span>
                         ))}
                         {config.exemploColunas.length > 3 && (
-                          <span className="px-2 py-1 text-xs text-gray-500">
+                          <span className="px-2 py-1 text-xs text-gray-600 dark:text-gray-300">
                             +{config.exemploColunas.length - 3} mais
                           </span>
                         )}
@@ -372,7 +372,7 @@ export default function ImportacaoDados() {
                       </button>
                       <button
                         onClick={() => baixarModeloCSV(tipo)}
-                        className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                        className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 rounded-lg transition-colors"
                         title="Baixar modelo CSV"
                       >
                         <Download className="w-4 h-4" />
@@ -387,27 +387,27 @@ export default function ImportacaoDados() {
 
         {/* Interface de Upload */}
         {estadoUpload.tipo && !estadoUpload.preview && !estadoUpload.concluido && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700 p-6">
             <div className="text-center">
               <div className="mb-4">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                   {configImportacao[estadoUpload.tipo].titulo}
                 </h2>
-                <p className="text-gray-600">
+                <p className="text-gray-600 dark:text-gray-300">
                   Selecione o arquivo CSV com os dados para importar
                 </p>
               </div>
 
               {/* Área de Drop/Upload */}
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 hover:border-gray-400 transition-colors">
+              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 hover:border-gray-400 transition-colors">
                 <div className="flex flex-col items-center gap-4">
-                  <div className="p-4 bg-gray-50 rounded-full">
-                    <FileText className="w-8 h-8 text-gray-400" />
+                  <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-full">
+                    <FileText className="w-8 h-8 text-gray-600 dark:text-gray-300" />
                   </div>
                   
                   <div>
                     <label className="cursor-pointer">
-                      <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
+                      <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white font-medium rounded-lg transition-colors">
                         <Upload className="w-4 h-4" />
                         Selecionar Arquivo CSV
                       </span>
@@ -421,7 +421,7 @@ export default function ImportacaoDados() {
                     </label>
                   </div>
 
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
                     <p>Ou arraste e solte o arquivo aqui</p>
                     <p className="text-xs mt-1">Máximo 10MB • Apenas arquivos .CSV</p>
                   </div>
@@ -430,7 +430,7 @@ export default function ImportacaoDados() {
 
               {/* Erro de Upload */}
               {estadoUpload.erro && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-lg">
                   <div className="flex items-center gap-2 text-red-800">
                     <AlertTriangle className="w-4 h-4" />
                     <span className="text-sm font-medium">{estadoUpload.erro}</span>
@@ -443,19 +443,19 @@ export default function ImportacaoDados() {
 
         {/* Preview dos Dados */}
         {estadoUpload.preview && !estadoUpload.concluido && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                     Preview dos Dados
                   </h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
                     {estadoUpload.preview.totalLinhas} registros encontrados • Mostrando primeiras {estadoUpload.preview.amostra} linhas
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
+                  <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 text-sm font-medium rounded-full">
                     {estadoUpload.arquivo?.name}
                   </span>
                 </div>
@@ -465,34 +465,34 @@ export default function ImportacaoDados() {
             {/* Tabela de Preview */}
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50 dark:bg-gray-900">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                       #
                     </th>
                     {estadoUpload.preview.headers.map((header, index) => (
                       <th
                         key={index}
-                        className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider"
                       >
                         {header}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200">
                   {estadoUpload.preview.rows.map((row, rowIndex) => (
-                    <tr key={rowIndex} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-500">
+                    <tr key={rowIndex} className="hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-600 dark:text-gray-300">
                         {rowIndex + 1}
                       </td>
                       {row.map((celula, cellIndex) => (
                         <td
                           key={cellIndex}
-                          className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 max-w-xs truncate"
+                          className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white max-w-xs truncate"
                           title={celula}
                         >
-                          {celula || <span className="text-gray-400 italic">vazio</span>}
+                          {celula || <span className="text-gray-600 dark:text-gray-300 italic">vazio</span>}
                         </td>
                       ))}
                     </tr>
@@ -502,15 +502,15 @@ export default function ImportacaoDados() {
             </div>
 
             {/* Ações do Preview */}
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+            <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600 dark:text-gray-300">
                   ✅ Arquivo válido • {estadoUpload.preview.headers.length} colunas detectadas
                 </div>
                 <div className="flex gap-3">
                   <button
                     onClick={resetarUpload}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    className="px-4 py-2 text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 rounded-lg transition-colors"
                   >
                     Cancelar
                   </button>
@@ -539,33 +539,33 @@ export default function ImportacaoDados() {
 
         {/* Resultados da Importação */}
         {estadoUpload.concluido && estadoUpload.resultados && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700 p-6">
             <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-                <CheckCircle className="w-8 h-8 text-green-600" />
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full mb-4">
+                <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                 Importação Concluída!
               </h3>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 Os dados foram processados e atualizados na base de dados
               </p>
             </div>
 
             {/* Estatísticas */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-green-600">
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {estadoUpload.resultados.inseridos}
                 </div>
                 <div className="text-sm text-green-700">Novos Registros</div>
               </div>
               
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-blue-600">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                   {estadoUpload.resultados.atualizados}
                 </div>
-                <div className="text-sm text-blue-700">Atualizados</div>
+                <div className="text-sm text-blue-700 dark:text-blue-300">Atualizados</div>
               </div>
               
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
@@ -577,11 +577,11 @@ export default function ImportacaoDados() {
             </div>
 
             {/* Detalhes */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Detalhes do Processamento:</h4>
+            <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 mb-6">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">Detalhes do Processamento:</h4>
               <div className="space-y-2">
                 {estadoUpload.resultados.detalhes.map((detalhe, index) => (
-                  <div key={index} className="text-sm text-gray-600 flex items-start gap-2">
+                  <div key={index} className="text-sm text-gray-600 dark:text-gray-300 flex items-start gap-2">
                     <span>{detalhe}</span>
                   </div>
                 ))}
@@ -592,7 +592,7 @@ export default function ImportacaoDados() {
             <div className="flex justify-center gap-3">
               <button
                 onClick={resetarUpload}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                className="px-6 py-2 bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white font-medium rounded-lg transition-colors"
               >
                 Nova Importação
               </button>
@@ -601,10 +601,10 @@ export default function ImportacaoDados() {
         )}
 
         {/* Informações e Dicas */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-xl p-6">
           <div className="flex items-start gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-blue-600" />
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="flex-1">
               <h3 className="text-sm font-semibold text-blue-900 mb-2">

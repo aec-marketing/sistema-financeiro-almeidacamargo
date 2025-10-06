@@ -328,8 +328,8 @@ const criarUsuario = async () => {
       <RoleGuard requireAdmin>
         <div className="p-6">
           <div className="animate-pulse space-y-6">
-            <div className="bg-gray-200 h-8 w-1/3 rounded"></div>
-            <div className="bg-gray-200 h-64 rounded-xl"></div>
+            <div className="bg-gray-200 dark:bg-gray-700 h-8 w-1/3 rounded"></div>
+            <div className="bg-gray-200 dark:bg-gray-700 h-64 rounded-xl"></div>
           </div>
         </div>
       </RoleGuard>
@@ -343,17 +343,17 @@ const criarUsuario = async () => {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-                <Users className="h-8 w-8 mr-3 text-blue-600" />
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
+                <Users className="h-8 w-8 mr-3 text-blue-600 dark:text-blue-400" />
                 Gestão de Usuários
               </h1>
-              <p className="text-gray-600 mt-2">
+              <p className="text-gray-600 dark:text-gray-300 mt-2">
                 Gerencie usuários do sistema e suas permissões
               </p>
             </div>
             <button
               onClick={() => setShowModalNovo(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium flex items-center transition-colors"
+              className="bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium flex items-center transition-colors"
             >
               <Plus className="h-5 w-5 mr-2" />
               Novo Usuário
@@ -363,25 +363,25 @@ const criarUsuario = async () => {
 
         {/* Estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-xl p-6">
             <div className="flex items-center">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Users className="h-6 w-6 text-blue-600" />
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="ml-4">
-                <p className="text-blue-600 font-medium text-sm">Total de Usuários</p>
+                <p className="text-blue-600 dark:text-blue-400 font-medium text-sm">Total de Usuários</p>
                 <p className="text-2xl font-bold text-blue-800">{usuarios.length}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 rounded-xl p-6">
             <div className="flex items-center">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <UserCheck className="h-6 w-6 text-green-600" />
+              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <UserCheck className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
               <div className="ml-4">
-                <p className="text-green-600 font-medium text-sm">Usuários Ativos</p>
+                <p className="text-green-600 dark:text-green-400 font-medium text-sm">Usuários Ativos</p>
                 <p className="text-2xl font-bold text-green-800">
                   {usuarios.filter(u => u.ativo).length}
                 </p>
@@ -389,13 +389,13 @@ const criarUsuario = async () => {
             </div>
           </div>
 
-          <div className="bg-purple-50 border border-purple-200 rounded-xl p-6">
+          <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 rounded-xl p-6">
             <div className="flex items-center">
               <div className="p-3 bg-purple-100 rounded-lg">
-                <Shield className="h-6 w-6 text-purple-600" />
+                <Shield className="h-6 w-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div className="ml-4">
-                <p className="text-purple-600 font-medium text-sm">Administradores</p>
+                <p className="text-purple-600 dark:text-purple-400 font-medium text-sm">Administradores</p>
                 <p className="text-2xl font-bold text-purple-800">
                   {usuarios.filter(u => u.role === 'admin_financeiro').length}
                 </p>
@@ -403,13 +403,13 @@ const criarUsuario = async () => {
             </div>
           </div>
 
-          <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
+          <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 rounded-xl p-6">
             <div className="flex items-center">
               <div className="p-3 bg-orange-100 rounded-lg">
-                <Users className="h-6 w-6 text-orange-600" />
+                <Users className="h-6 w-6 text-orange-600 dark:text-orange-400" />
               </div>
               <div className="ml-4">
-                <p className="text-orange-600 font-medium text-sm">Vendedores</p>
+                <p className="text-orange-600 dark:text-orange-400 font-medium text-sm">Vendedores</p>
                 <p className="text-2xl font-bold text-orange-800">
                   {usuarios.filter(u => u.role === 'consultor_vendas').length}
                 </p>
@@ -419,23 +419,23 @@ const criarUsuario = async () => {
         </div>
 
         {/* Filtros e Busca */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6 mb-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="relative">
-                <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 dark:text-gray-300" />
                 <input
                   type="text"
                   placeholder="Buscar usuários..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             </div>
             <button
               onClick={carregarDados}
-              className="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
+              className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-800 transition-colors"
             >
               <RefreshCw className="h-5 w-5 mr-2" />
               Atualizar
@@ -444,45 +444,41 @@ const criarUsuario = async () => {
         </div>
 
         {/* Tabela de Usuários */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-gray-900">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                     Usuário
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                     Role/Função
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                     Representante
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                     Ações
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200">
                 {usuariosFiltrados.map((usuario) => (
-                  <tr key={usuario.id} className="hover:bg-gray-50">
+                  <tr key={usuario.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
-                          usuario.role === 'admin_financeiro' 
-                            ? 'bg-red-500' 
-                            : 'bg-blue-500'
-                        }`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${ usuario.role === 'admin_financeiro' ? 'bg-red-500' : 'bg-blue-500' }`}>
                           {usuario.nome.split(' ').map(n => n[0]).join('').slice(0, 2)}
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
                             {usuario.nome}
                           </div>
-                          <div className="text-sm text-gray-500 flex items-center">
+                          <div className="text-sm text-gray-600 dark:text-gray-300 flex items-center">
                             <Mail className="h-3 w-3 mr-1" />
                             {usuario.email || 'Email não disponível'}
                           </div>
@@ -490,32 +486,24 @@ const criarUsuario = async () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        usuario.role === 'admin_financeiro'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${ usuario.role === 'admin_financeiro' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800' }`}>
                         {usuario.role === 'admin_financeiro' ? 'Admin' : 'Vendedor'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                       {usuario.representante ? (
                         <div>
                           <div className="font-medium">{usuario.representante.nome}</div>
-                          <div className="text-xs text-gray-400">
+                          <div className="text-xs text-gray-600 dark:text-gray-300">
                             Cód: {usuario.representante.codigo} • {usuario.representante.totalVendas} vendas
                           </div>
                         </div>
                       ) : (
-                        <span className="text-gray-400">—</span>
+                        <span className="text-gray-600 dark:text-gray-300">—</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        usuario.ativo
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${ usuario.ativo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }`}>
                         {usuario.ativo ? 'Ativo' : 'Inativo'}
                       </span>
                     </td>
@@ -525,18 +513,14 @@ const criarUsuario = async () => {
                           setUsuarioEdicao(usuario)
                           setShowModalEdicao(true)
                         }}
-                        className="text-blue-600 hover:text-blue-900 transition-colors"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-900 transition-colors"
                       >
                         <Edit3 className="h-4 w-4" />
                       </button>
                       
                       <button
                         onClick={() => toggleUsuarioStatus(usuario.id, !usuario.ativo)}
-                        className={`transition-colors ${
-                          usuario.ativo 
-                            ? 'text-red-600 hover:text-red-900'
-                            : 'text-green-600 hover:text-green-900'
-                        }`}
+                        className={`transition-colors ${ usuario.ativo ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900' }`}
                       >
                         {usuario.ativo ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                       </button>
@@ -549,8 +533,8 @@ const criarUsuario = async () => {
 
           {usuariosFiltrados.length === 0 && (
             <div className="text-center py-12">
-              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">
+              <Users className="h-12 w-12 text-gray-600 dark:text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-300">
                 {searchTerm ? 'Nenhum usuário encontrado' : 'Nenhum usuário cadastrado'}
               </p>
             </div>
@@ -560,53 +544,53 @@ const criarUsuario = async () => {
         {/* Modal Novo Usuário */}
         {showModalNovo && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Criar Novo Usuário</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Criar Novo Usuário</h3>
               </div>
               
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                     Nome Completo *
                   </label>
                   <input
                     type="text"
                     value={novoUsuario.nome}
                     onChange={(e) => setNovoUsuario(prev => ({...prev, nome: e.target.value}))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Ex: João Silva"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                     Email *
                   </label>
                   <input
                     type="email"
                     value={novoUsuario.email}
                     onChange={(e) => setNovoUsuario(prev => ({...prev, email: e.target.value}))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="joao.silva@almeidacamargo.com.br"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                     Senha *
                   </label>
                   <input
                     type="password"
                     value={novoUsuario.senha}
                     onChange={(e) => setNovoUsuario(prev => ({...prev, senha: e.target.value}))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Mínimo 6 caracteres"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                     Tipo de Usuário *
                   </label>
                   <select
@@ -616,7 +600,7 @@ const criarUsuario = async () => {
                       role: e.target.value as 'admin_financeiro' | 'consultor_vendas',
                       cd_representante: e.target.value === 'admin_financeiro' ? undefined : prev.cd_representante
                     }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="consultor_vendas">Consultor de Vendas</option>
                     <option value="admin_financeiro">Admin Financeiro</option>
@@ -625,7 +609,7 @@ const criarUsuario = async () => {
 
                 {novoUsuario.role === 'consultor_vendas' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                       Representante *
                     </label>
                     <select
@@ -634,7 +618,7 @@ const criarUsuario = async () => {
                         ...prev, 
                         cd_representante: e.target.value ? Number(e.target.value) : undefined
                       }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Selecione um representante...</option>
                       {representantes.map((repr) => (
@@ -647,10 +631,10 @@ const criarUsuario = async () => {
                 )}
               </div>
               
-              <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
+              <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
                 <button
                   onClick={() => setShowModalNovo(false)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 rounded-lg transition-colors"
                   disabled={salvando}
                 >
                   Cancelar
@@ -658,7 +642,7 @@ const criarUsuario = async () => {
                 <button
                   onClick={criarUsuario}
                   disabled={salvando}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                  className="px-6 py-2 bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50"
                 >
                   {salvando ? 'Criando...' : 'Criar Usuário'}
                 </button>
@@ -670,44 +654,44 @@ const criarUsuario = async () => {
         {/* Modal Edição de Usuário */}
         {showModalEdicao && usuarioEdicao && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Editar Usuário</h3>
-                <p className="text-sm text-gray-500 mt-1">{usuarioEdicao.email}</p>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Editar Usuário</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{usuarioEdicao.email}</p>
               </div>
 
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                     Nome Completo *
                   </label>
                   <input
                     type="text"
                     value={usuarioEdicao.nome}
                     onChange={(e) => setUsuarioEdicao(prev => prev ? {...prev, nome: e.target.value} : null)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Ex: João Silva"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                     Email
                   </label>
                   <input
                     type="email"
                     value={usuarioEdicao.email || 'Email não disponível'}
                     disabled
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed"
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 cursor-not-allowed"
                     title="O email não pode ser alterado"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
                     ⚠️ O email não pode ser alterado por limitações do Supabase
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                     Tipo de Usuário *
                   </label>
                   <select
@@ -717,7 +701,7 @@ const criarUsuario = async () => {
                       role: e.target.value as 'admin_financeiro' | 'consultor_vendas',
                       cd_representante: e.target.value === 'admin_financeiro' ? undefined : prev.cd_representante
                     } : null)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="consultor_vendas">Consultor de Vendas</option>
                     <option value="admin_financeiro">Admin Financeiro</option>
@@ -726,7 +710,7 @@ const criarUsuario = async () => {
 
                 {usuarioEdicao.role === 'consultor_vendas' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                       Representante *
                     </label>
                     <select
@@ -735,7 +719,7 @@ const criarUsuario = async () => {
                         ...prev,
                         cd_representante: e.target.value ? Number(e.target.value) : undefined
                       } : null)}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Selecione um representante...</option>
                       {representantes.map((repr) => (
@@ -753,25 +737,25 @@ const criarUsuario = async () => {
                       type="checkbox"
                       checked={usuarioEdicao.ativo}
                       onChange={(e) => setUsuarioEdicao(prev => prev ? {...prev, ativo: e.target.checked} : null)}
-                      className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      className="w-5 h-5 text-blue-600 dark:text-blue-400 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500"
                     />
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
                       Usuário ativo
                     </span>
                   </label>
-                  <p className="text-xs text-gray-500 mt-1 ml-8">
+                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 ml-8">
                     Usuários inativos não conseguem fazer login no sistema
                   </p>
                 </div>
               </div>
 
-              <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
+              <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
                 <button
                   onClick={() => {
                     setShowModalEdicao(false)
                     setUsuarioEdicao(null)
                   }}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 rounded-lg transition-colors"
                   disabled={salvando}
                 >
                   Cancelar
@@ -779,7 +763,7 @@ const criarUsuario = async () => {
                 <button
                   onClick={editarUsuario}
                   disabled={salvando}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                  className="px-6 py-2 bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50"
                 >
                   {salvando ? 'Salvando...' : 'Salvar Alterações'}
                 </button>
@@ -790,7 +774,7 @@ const criarUsuario = async () => {
 
         {/* Error Display */}
         {error && (
-          <div className="fixed bottom-4 right-4 bg-red-50 border border-red-200 rounded-lg p-4 max-w-md">
+          <div className="fixed bottom-4 right-4 bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-lg p-4 max-w-md">
             <div className="flex items-start">
               <AlertCircle className="h-5 w-5 text-red-400 mt-0.5 mr-3" />
               <div>

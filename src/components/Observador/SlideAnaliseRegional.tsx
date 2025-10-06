@@ -61,7 +61,7 @@ export function SlideAnaliseRegional({
       );
     }
     return (
-      <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+      <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 20 20">
         <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
       </svg>
     );
@@ -72,10 +72,10 @@ export function SlideAnaliseRegional({
       
       {/* Título do Slide */}
       <div className="mb-6">
-        <h2 className="text-4xl font-bold text-gray-800 mb-2">
+        <h2 className="text-4xl font-bold text-gray-800 dark:text-gray-100 mb-2">
           Análise Regional
         </h2>
-        <p className="text-xl text-gray-600">
+        <p className="text-xl text-gray-600 dark:text-gray-300">
           Vendas por Cidade • {obterNomeMesCompleto(mesAtual)} de {anoAtual}
         </p>
       </div>
@@ -84,8 +84,8 @@ export function SlideAnaliseRegional({
       <div className="flex-1 grid grid-cols-2 gap-6">
         
         {/* Coluna Esquerda: Top 10 Cidades */}
-        <div className="bg-white rounded-xl shadow-lg p-6 flex flex-col">
-          <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-gray-900/50 p-6 flex flex-col">
+          <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
             <span className="text-3xl">🗺️</span>
             Top 10 Cidades
           </h3>
@@ -99,26 +99,23 @@ export function SlideAnaliseRegional({
                 <div key={cidade.cidade} className="group">
                   <div className="flex items-center justify-between mb-1">
                     {/* Posição e Nome */}
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <span className={`
-                        w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0
-                        ${index < 3 ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white' : 'bg-gray-200 text-gray-700'}
-                      `}>
+                    <div className="items-center gap-3 flex-1 min-w-0">
+                      <span className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${index < 3 ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>
                         {index + 1}
                       </span>
-                      <span className="font-semibold text-gray-800 truncate">
+                      <span className="font-semibold text-gray-800 dark:text-gray-100 truncate">
                         {cidade.cidade}
                       </span>
                     </div>
 
                     {/* Valor */}
-                    <span className="font-bold text-gray-800 text-lg ml-2">
+                    <span className="font-bold text-gray-800 dark:text-gray-100 text-lg ml-2">
                       {formatarMoedaCompacta(cidade.faturamento)}
                     </span>
                   </div>
 
                   {/* Barra Horizontal */}
-                  <div className="relative w-full bg-gray-200 rounded-full h-3 mb-1">
+                  <div className="relative w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 mb-1">
                     <div
                       className="absolute top-0 left-0 h-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-700 group-hover:from-blue-600 group-hover:to-blue-700"
                       style={{ width: `${larguraBarra}%` }}
@@ -126,13 +123,10 @@ export function SlideAnaliseRegional({
                   </div>
 
                   {/* Informações Adicionais */}
-                  <div className="flex items-center justify-between text-xs text-gray-500 ml-10">
+                  <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300 ml-10">
                     <span>{cidade.numeroVendas} vendas</span>
                     {crescimento && (
-                      <span className={`font-semibold flex items-center gap-1 ${
-                        crescimento.crescimentoPercentual > 0 ? 'text-green-600' : 
-                        crescimento.crescimentoPercentual < 0 ? 'text-red-600' : 'text-gray-500'
-                      }`}>
+                      <span className={`font-semibold flex items-center gap-1 ${crescimento.crescimentoPercentual > 0 ? 'text-green-600' : crescimento.crescimentoPercentual < 0 ? 'text-red-600' : 'text-gray-600 dark:text-gray-300'}`}>
                         {crescimento.crescimentoPercentual > 0 ? '▲' : crescimento.crescimentoPercentual < 0 ? '▼' : '−'}
                         {formatarPercentual(Math.abs(crescimento.crescimentoPercentual), 1)}
                       </span>
@@ -144,8 +138,8 @@ export function SlideAnaliseRegional({
           </div>
 
           {cidadesVenda.length === 0 && (
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-center text-gray-400">
+            <div className="flex items-center justify-center">
+              <p className="text-center text-gray-600 dark:text-gray-300">
                 Nenhuma cidade com vendas neste período
               </p>
             </div>
@@ -156,8 +150,8 @@ export function SlideAnaliseRegional({
         <div className="flex flex-col gap-6">
           
           {/* Maiores Crescimentos */}
-          <div className="bg-white rounded-xl shadow-lg p-6 flex-1">
-            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-gray-900/50 p-6 flex-1">
+            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
               <span className="text-2xl">📈</span>
               Maiores Crescimentos
             </h3>
@@ -165,23 +159,23 @@ export function SlideAnaliseRegional({
             {top5Crescimento.length > 0 ? (
               <div className="space-y-3">
                 {top5Crescimento.map((cidade) => (
-                  <div key={cidade.cidade} className="flex items-center gap-3 p-3 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
+                  <div key={cidade.cidade} className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 transition-colors">
                     <IconeTendencia tendencia={cidade.tendencia} />
                     
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-gray-800 truncate">
+                      <div className="font-semibold text-gray-800 dark:text-gray-100 truncate">
                         {cidade.cidade}
                       </div>
-                      <div className="text-xs text-gray-600">
+                      <div className="text-xs text-gray-600 dark:text-gray-300">
                         {formatarMoeda(cidade.mesAtual)}
                       </div>
                     </div>
 
                     <div className="text-right">
-                      <div className="text-lg font-bold text-green-600">
+                      <div className="text-lg font-bold text-green-600 dark:text-green-400">
                         +{formatarPercentual(cidade.crescimentoPercentual, 1)}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-600 dark:text-gray-300">
                         vs mês anterior
                       </div>
                     </div>
@@ -189,15 +183,15 @@ export function SlideAnaliseRegional({
                 ))}
               </div>
             ) : (
-              <p className="text-center text-gray-400 py-8">
+              <p className="text-center text-gray-600 dark:text-gray-300 py-8">
                 Nenhuma cidade com crescimento positivo
               </p>
             )}
           </div>
 
           {/* Maiores Quedas */}
-          <div className="bg-white rounded-xl shadow-lg p-6 flex-1">
-            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-gray-900/50 p-6 flex-1">
+            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
               <span className="text-2xl">📉</span>
               Maiores Quedas
             </h3>
@@ -205,23 +199,23 @@ export function SlideAnaliseRegional({
             {top5Queda.length > 0 ? (
               <div className="space-y-3">
                 {top5Queda.map((cidade) => (
-                  <div key={cidade.cidade} className="flex items-center gap-3 p-3 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+                  <div key={cidade.cidade} className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 transition-colors">
                     <IconeTendencia tendencia={cidade.tendencia} />
                     
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-gray-800 truncate">
+                      <div className="font-semibold text-gray-800 dark:text-gray-100 truncate">
                         {cidade.cidade}
                       </div>
-                      <div className="text-xs text-gray-600">
+                      <div className="text-xs text-gray-600 dark:text-gray-300">
                         {formatarMoeda(cidade.mesAtual)}
                       </div>
                     </div>
 
                     <div className="text-right">
-                      <div className="text-lg font-bold text-red-600">
+                      <div className="text-lg font-bold text-red-600 dark:text-red-400">
                         {formatarPercentual(cidade.crescimentoPercentual, 1)}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-600 dark:text-gray-300">
                         vs mês anterior
                       </div>
                     </div>
@@ -229,7 +223,7 @@ export function SlideAnaliseRegional({
                 ))}
               </div>
             ) : (
-              <p className="text-center text-gray-400 py-8">
+              <p className="text-center text-gray-600 dark:text-gray-300 py-8">
                 Nenhuma cidade com queda
               </p>
             )}

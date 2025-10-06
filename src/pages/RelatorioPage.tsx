@@ -6,6 +6,13 @@ import { gerarRelatorioPDF } from '../utils/exportPDF';
 import html2canvas from 'html2canvas';
 import { useUserAccess } from '../hooks/useUserAccess';
 
+// Extensão da interface Window para propriedades customizadas
+declare global {
+  interface Window {
+    graficoEditandoId?: string;
+  }
+}
+
 // Interfaces corrigidas para os dados reais do Supabase
 interface Cliente {
   id: number;
@@ -39,6 +46,7 @@ interface Venda {
   NomeRepr: string;
   cdCli: string;
   'Descr. Produto'?: string;
+  'Cód. Referência'?: string;
 }
 // Interfaces para gráficos (adicionar após as interfaces existentes)
 interface SugestaoGrafico {
@@ -60,6 +68,20 @@ interface GraficoConfig {
   titulo: string;
   filtrosAplicados: Filtro[]; // Adicionar esta linha
 }
+
+interface DadosGrafico {
+  nome: string;
+  faturamento_total?: number;
+  frequencia_vendas?: number;
+  ticket_medio?: number;
+}
+
+interface Grafico {
+  id: string;
+  config: GraficoConfig;
+  dados: DadosGrafico[];
+}
+
 // Tipos auxiliares para garantir type safety
 type FilterConfig = {
   label: string;
@@ -199,7 +221,7 @@ const [paginaAtual, setPaginaAtual] = useState(1);
 const [itensPorPagina] = useState(50); // 50 itens por página
 // Estados para gráficos
 const [mostrarModalGrafico, setMostrarModalGrafico] = useState(false);
-const [graficos, setGraficos] = useState<Array<{id: string, config: GraficoConfig, dados: any[]}>>([]);
+const [graficos, setGraficos] = useState<Grafico[]>([]);
 const [proximoId, setProximoId] = useState(1);
 // Estados para configurações avançadas
 const [mostrarModalConfig, setMostrarModalConfig] = useState(false);
@@ -207,8 +229,8 @@ const [configTemporaria, setConfigTemporaria] = useState<GraficoConfig | null>(n
 const [processandoGrafico, setProcessandoGrafico] = useState(false);
 
 // Debounce para otimizar performance
-const useDebounce = (value: any, delay: number) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
+const useDebounce = <T,>(value: T, delay: number): T => {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -259,8 +281,8 @@ const carregarDados = async () => {
     console.log('🔄 Iniciando carregamento com paginação...');
 
     // Helper function for paginated fetching
-    const fetchWithPagination = async (table: string, columns: string, additionalFilters?: any) => {
-      let allData: any[] = [];
+    const fetchWithPagination = async <T,>(table: string, columns: string, additionalFilters?: Record<string, unknown>) => {
+      let allData: T[] = [];
       let start = 0;
       const limit = 1000; // Supabase's default limit per page
       let hasMore = true;
@@ -288,9 +310,9 @@ const carregarDados = async () => {
         }
 
         if (data && data.length > 0) {
-          allData = [...allData, ...data];
+          allData = [...allData, ...(data as T[])];
           start += limit;
-          
+
           // If we got less than the limit, we've reached the end
           if (data.length < limit) {
             hasMore = false;
@@ -306,26 +328,26 @@ const carregarDados = async () => {
 
     // Fetch all data with pagination in parallel
     const [clientes, itens, vendas] = await Promise.all([
-      fetchWithPagination('clientes', `
+      fetchWithPagination<Cliente>('clientes', `
         id,
         "Nome",
-        "Município", 
+        "Município",
         "Sigla Estado",
         "CNPJ",
         "Entidade"
       `),
-      
-      fetchWithPagination('itens', `
+
+      fetchWithPagination<Item>('itens', `
         id,
         "Descr. Marca Produto",
-        "Descr. Grupo Produto", 
+        "Descr. Grupo Produto",
         "Desc. Subgrupo de Produto",
         "Cód. Referência",
         "Cód. do Produto",
         "Descr. Produto"
       `),
-      
-      fetchWithPagination('vendas', `
+
+      fetchWithPagination<Venda>('vendas', `
         id,
         "Data de Emissao da NF",
         total,
@@ -720,17 +742,24 @@ if (temFiltroInclusivo(sugestao.campo)) {
 }, [filtros]);
 
 // Função para processar dados para gráficos
-// Função para processar dados para gráficos
-const processarDadosGrafico = useCallback((config: GraficoConfig) => {
+const processarDadosGrafico = useCallback((config: GraficoConfig): DadosGrafico[] => {
   // Validação de dados mínimos
   if (dadosFiltrados.length < 2) {
     console.log('Poucos dados para gerar gráfico:', dadosFiltrados.length);
     return [];
   }
 
+  interface DadosAgrupados {
+    nome: string;
+    faturamento_total: number;
+    frequencia_vendas: number;
+    ticket_medio: number;
+    valores: number[];
+  }
+
   const dados = dadosFiltrados.reduce((acc, venda) => {
-    const chave = venda[config.campoAgrupamento as keyof Venda] || 'Não informado';
-    
+    const chave = String(venda[config.campoAgrupamento as keyof Venda] || 'Não informado');
+
     if (!acc[chave]) {
       acc[chave] = {
         nome: chave,
@@ -740,30 +769,32 @@ const processarDadosGrafico = useCallback((config: GraficoConfig) => {
         valores: []
       };
     }
-    
+
     // Calcular valor da venda
-    const valorVenda = converterValor(venda.total) > 0 
+    const valorVenda = converterValor(venda.total) > 0
       ? converterValor(venda.total)
       : converterValor(venda["Preço Unitário"]) * converterValor(venda.Quantidade);
-    
+
     acc[chave].faturamento_total += valorVenda;
     acc[chave].frequencia_vendas += 1;
     acc[chave].valores.push(valorVenda);
-    
+
     return acc;
-  }, {} as Record<string, any>);
-  
+  }, {} as Record<string, DadosAgrupados>);
+
   // Calcular ticket médio
   Object.keys(dados).forEach(chave => {
     const item = dados[chave];
     item.ticket_medio = item.frequencia_vendas > 0 ? item.faturamento_total / item.frequencia_vendas : 0;
   });
-  
-  // Converter para array e ordenar
-  const dadosArray = Object.values(dados)
-    .sort((a: any, b: any) => b[config.metrica] - a[config.metrica])
-    .slice(0, config.topN);
-    
+
+  // Converter para array e ordenar, removendo a propriedade 'valores'
+  const dadosArray: DadosGrafico[] = Object.values(dados)
+    .sort((a, b) => (b[config.metrica] ?? 0) - (a[config.metrica] ?? 0))
+    .slice(0, config.topN)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    .map(({ valores: _, ...rest }) => rest);
+
   return dadosArray;
 }, [dadosFiltrados, converterValor]);
 
@@ -781,7 +812,7 @@ const capturarGraficosLocal = useCallback(async (): Promise<Array<{imagem: strin
   const graficosParaCapturar: Array<{
     elemento: HTMLElement;
     id: string;
-    config: any;
+    config: GraficoConfig;
     rect: DOMRect;
   }> = [];
 
@@ -795,7 +826,7 @@ const capturarGraficosLocal = useCallback(async (): Promise<Array<{imagem: strin
       graficosParaCapturar.push({
         elemento,
         id: graficoId!,
-        config: graficoConfig,
+        config: graficoConfig.config,
         rect
       });
 
@@ -912,7 +943,7 @@ const capturarGraficosLocal = useCallback(async (): Promise<Array<{imagem: strin
       // Para gráficos de rosca, verificar se há legenda lateral
       const isGraficoRosca = elemento.querySelector('.recharts-pie-chart') ||
                              elemento.innerHTML.includes('PieChart') ||
-                             config.config.tipoGrafico === 'rosca';
+                             config.tipoGrafico === 'rosca';
 
       if (isGraficoRosca) {
         // Tentar encontrar o container pai que inclui tanto o gráfico quanto a legenda
@@ -941,7 +972,7 @@ const capturarGraficosLocal = useCallback(async (): Promise<Array<{imagem: strin
 
       imagensCapturadas.push({
         imagem: canvas.toDataURL('image/png'),
-        titulo: config.config.titulo,
+        titulo: config.titulo,
         aspectRatio: canvas.width / canvas.height
       });
 
@@ -957,7 +988,7 @@ const capturarGraficosLocal = useCallback(async (): Promise<Array<{imagem: strin
         // Verificar se é gráfico de rosca para capturar com legenda no método de emergência
         const isGraficoRosca = elemento.querySelector('.recharts-pie-chart') ||
                                elemento.innerHTML.includes('PieChart') ||
-                               config.config.tipoGrafico === 'rosca';
+                               config.tipoGrafico === 'rosca';
 
         let elementoEmergencia = elemento;
         let dimensoesEmergencia = rect;
@@ -1005,7 +1036,7 @@ const capturarGraficosLocal = useCallback(async (): Promise<Array<{imagem: strin
 
         imagensCapturadas.push({
           imagem: canvasEmergencia.toDataURL('image/png'),
-          titulo: config.config.titulo,
+          titulo: config.titulo,
           aspectRatio: canvasEmergencia.width / canvasEmergencia.height
         });
 
@@ -1116,7 +1147,7 @@ const resetarPaginacao = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Carregando dados para relatórios...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-300">Carregando dados para relatórios...</p>
         </div>
       </div>
     );
@@ -1124,9 +1155,9 @@ const resetarPaginacao = () => {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6 m-6">
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-lg p-6 m-6">
         <h3 className="text-red-800 font-semibold mb-2">Erro ao carregar dados</h3>
-        <p className="text-red-600">{error}</p>
+        <p className="text-red-600 dark:text-red-400">{error}</p>
         <button 
           onClick={() => window.location.reload()} 
           className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
@@ -1139,58 +1170,73 @@ const resetarPaginacao = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <div className="flex items-center justify-between mb-4">
+      {/* Header - REDESENHADO PARA MOBILE */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-gray-900/50 border p-4 sm:p-6">
+        <div className="space-y-4">
+          {/* Título e Descrição */}
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Relatórios Personalizados</h1>
-            <p className="text-gray-600">Crie consultas flexíveis com filtros inteligentes</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              Relatórios Personalizados
+            </h1>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              Crie consultas flexíveis com filtros inteligentes
+            </p>
           </div>
-          <div className="flex gap-3">
-            <button 
-              onClick={limparFiltros}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              <X className="w-4 h-4" />
-              Limpar Tudo
-            </button>
-            <button 
-              onClick={salvarRelatorio}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Save className="w-4 h-4" />
-              Salvar Relatório
-            </button>
-            <button 
-  onClick={exportarDados}
-  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
->
-  <Download className="w-4 h-4" />
-  Gerar PDF
-</button>
+
+          {/* Input Nome + Botões */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="text"
+              placeholder="Dê um nome para este relatório..."
+              value={nomeRelatorio}
+              onChange={(e) => setNomeRelatorio(e.target.value)}
+              className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            />
+
+            <div className="flex gap-2">
+              <button
+                onClick={limparFiltros}
+                className="flex-1 sm:flex-none px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <span className="hidden sm:inline">Limpar Tudo</span>
+                <span className="sm:hidden">Limpar</span>
+              </button>
+
+              <button
+                onClick={salvarRelatorio}
+                className="sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 dark:bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+              >
+                <Save className="w-4 h-4" />
+                <span className="hidden sm:inline">Salvar Relatório</span>
+                <span className="sm:hidden">Salvar</span>
+              </button>
+
+              <button
+                onClick={exportarDados}
+                className="sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Gerar PDF</span>
+                <span className="sm:hidden">PDF</span>
+              </button>
+            </div>
           </div>
         </div>
-
-        <input
-          type="text"
-          placeholder="Dê um nome para este relatório..."
-          value={nomeRelatorio}
-          onChange={(e) => setNomeRelatorio(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
       </div>
 
-      {/* Query Builder */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Filter className="w-5 h-5" />
+      {/* Filtros do Relatório */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-gray-900/50 border p-4 sm:p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
           Filtros do Relatório
         </h2>
 
         {/* Filtros Existentes */}
         {filtros.length > 0 && (
           <div className="mb-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">
               Mostrando dados onde:
             </h3>
             <div className="flex flex-wrap gap-2 items-center">
@@ -1201,19 +1247,19 @@ const resetarPaginacao = () => {
                       {OPERADORES_LOGICOS[filtro.logica].label}
                     </span>
                   )}
-                  <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg">
                     <span className="text-sm">
-                      <span className="font-medium text-blue-600">{getNomeTabela(filtro.tabela)}</span>
-                      <span className="mx-1 text-gray-500">→</span>
+                      <span className="font-medium text-blue-600 dark:text-blue-400">{getNomeTabela(filtro.tabela)}</span>
+                      <span className="mx-1 text-gray-600 dark:text-gray-300">→</span>
                       <span className="font-medium">{getFieldConfigSafe(filtro.tabela, filtro.campo).label}</span>
-                      <span className="mx-1 text-gray-600 italic">
+                      <span className="mx-1 text-gray-600 dark:text-gray-300 italic">
                         {getOperatorsForField(filtro.tabela, filtro.campo).find((op: { value: string; label: string }) => op.value === filtro.operador)?.label}
                       </span>
-                      <span className="font-bold text-purple-600">"{filtro.valor}"</span>
+                      <span className="font-bold text-purple-600 dark:text-purple-400">"{filtro.valor}"</span>
                     </span>
                     <button
                       onClick={() => setFiltroEditando(filtro)}
-                      className="text-blue-500 hover:text-blue-700 ml-2"
+                      className="text-blue-500 hover:text-blue-700 dark:text-blue-300 ml-2"
                       title="Editar filtro"
                     >
                       <Filter className="w-4 h-4" />
@@ -1237,7 +1283,7 @@ const resetarPaginacao = () => {
             <select
               value={novoFiltro.logica}
               onChange={(e) => setNovoFiltro({...novoFiltro, logica: e.target.value as keyof typeof OPERADORES_LOGICOS})}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800"
             >
               <option value="AND">E também</option>
               <option value="OR">OU então</option>
@@ -1248,7 +1294,7 @@ const resetarPaginacao = () => {
           <select
             value={novoFiltro.tabela}
             onChange={(e) => setNovoFiltro({...novoFiltro, tabela: e.target.value as TabelaKey, campo: '', operador: '', valor: ''})}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800"
           >
             <option value="">Escolha os dados...</option>
             <option value="clientes">Clientes</option>
@@ -1259,7 +1305,7 @@ const resetarPaginacao = () => {
           <select
             value={novoFiltro.campo}
             onChange={(e) => setNovoFiltro({...novoFiltro, campo: e.target.value, operador: '', valor: ''})}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800"
             disabled={!novoFiltro.tabela}
           >
             <option value="">Qual informação?</option>
@@ -1271,7 +1317,7 @@ const resetarPaginacao = () => {
           <select
             value={novoFiltro.operador}
             onChange={(e) => setNovoFiltro({...novoFiltro, operador: e.target.value})}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800"
             disabled={!novoFiltro.campo}
           >
             <option value="">Como filtrar?</option>
@@ -1288,7 +1334,7 @@ const resetarPaginacao = () => {
             <select
               value={novoFiltro.valor}
               onChange={(e) => setNovoFiltro({...novoFiltro, valor: e.target.value})}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800"
               disabled={!novoFiltro.operador}
             >
               <option value="">Qual valor?</option>
@@ -1302,14 +1348,14 @@ const resetarPaginacao = () => {
               placeholder="Digite o valor..."
               value={novoFiltro.valor}
               onChange={(e) => setNovoFiltro({...novoFiltro, valor: e.target.value})}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800"
               disabled={!novoFiltro.operador}
             />
           )}
 
           <button
             onClick={adicionarFiltro}
-            className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="flex items-center justify-center px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
             disabled={!novoFiltro.tabela || !novoFiltro.campo || !novoFiltro.operador || !novoFiltro.valor}
           >
             <Plus className="w-4 h-4 mr-1" />
@@ -1320,106 +1366,182 @@ const resetarPaginacao = () => {
 
       {/* Métricas */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <h3 className="text-sm text-gray-600">Vendas Encontradas</h3>
-          <p className="text-2xl font-bold text-blue-600">{metricas.totalVendas}</p>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm dark:shadow-gray-900/50 border">
+          <h3 className="text-sm text-gray-600 dark:text-gray-300">Vendas Encontradas</h3>
+          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{metricas.totalVendas}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <h3 className="text-sm text-gray-600">Faturamento Total</h3>
-          <p className="text-2xl font-bold text-green-600">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm dark:shadow-gray-900/50 border">
+          <h3 className="text-sm text-gray-600 dark:text-gray-300">Faturamento Total</h3>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400">
             {formatarMoeda(metricas.faturamentoTotal)}
           </p>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <h3 className="text-sm text-gray-600">Valor Médio</h3>
-          <p className="text-2xl font-bold text-purple-600">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm dark:shadow-gray-900/50 border">
+          <h3 className="text-sm text-gray-600 dark:text-gray-300">Valor Médio</h3>
+          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
             {formatarMoeda(metricas.ticketMedio)}
           </p>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <h3 className="text-sm text-gray-600">Clientes Únicos</h3>
-          <p className="text-2xl font-bold text-orange-600">{metricas.clientesUnicos}</p>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm dark:shadow-gray-900/50 border">
+          <h3 className="text-sm text-gray-600 dark:text-gray-300">Clientes Únicos</h3>
+          <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{metricas.clientesUnicos}</p>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <h3 className="text-sm text-gray-600">Quantidade Total</h3>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm dark:shadow-gray-900/50 border">
+          <h3 className="text-sm text-gray-600 dark:text-gray-300">Quantidade Total</h3>
           <p className="text-2xl font-bold text-cyan-600">{metricas.quantidadeTotal}</p>
         </div>
 
       </div>
 
       {/* Resultado */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">
-            Resultados da Consulta 
-            <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-              {dadosFiltrados.length} vendas
-            </span>
-          </h2>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setVisualizacao('tabela')}
-              className={`p-2 rounded transition-colors ${visualizacao === 'tabela' ? 'bg-blue-100 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
-              title="Ver como tabela"
-            >
-              <Table className="w-4 h-4" />
-            </button>
-            <button
-  onClick={() => setVisualizacao('graficos')}
-  className={`p-2 rounded transition-colors ${visualizacao === 'graficos' ? 'bg-blue-100 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
-  title="Ver como gráfico"
->
-  <BarChart3 className="w-4 h-4" />
-</button>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-gray-900/50 border p-4 sm:p-6">
+        {/* Header Responsivo */}
+        <div className="mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            {/* Título + Badge */}
+            <div className="flex items-center flex-wrap gap-2">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+                Resultados da Consulta
+              </h2>
+              <span className="inline-flex items-center px-2.5 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 text-xs sm:text-sm font-medium rounded-full">
+                {dadosFiltrados.length} vendas
+              </span>
+            </div>
+
+            {/* Botões de Visualização */}
+            <div className="flex gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => setVisualizacao('tabela')}
+                className={`sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg transition-colors font-medium ${ visualizacao === 'tabela' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }`}
+                title="Ver como tabela"
+              >
+                <Table className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-sm">Tabela</span>
+              </button>
+              <button
+                onClick={() => setVisualizacao('graficos')}
+                className={`sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg transition-colors font-medium ${ visualizacao === 'graficos' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }`}
+                title="Ver como gráfico"
+              >
+                <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-sm">Gráficos</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {dadosFiltrados.length === 0 ? (
-  <div className="text-center py-12 text-gray-500">
+  <div className="text-center py-12 text-gray-600 dark:text-gray-300">
     <Search className="w-12 h-12 mx-auto mb-4 text-gray-300" />
     <p className="text-lg font-medium mb-2">Nenhuma venda encontrada</p>
     <p className="text-sm">Tente ajustar os filtros ou remover algumas condições.</p>
   </div>
 ) : visualizacao === 'tabela' ? (
-  /* Toda a seção da tabela existente fica aqui */
-  <div className="overflow-x-auto">
-    <table className="w-full">
-              <thead>
-                <tr className="border-b bg-gray-50">
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Data</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Cliente</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Produto</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Marca</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Cidade</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Qtd</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Valor Total</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Vendedor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dadosPaginados.map((venda) => (
-                  <tr key={venda.id} className="border-b hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-sm text-gray-900">{venda['Data de Emissao da NF']}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{venda.NomeCli}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 truncate max-w-xs" title={venda['Descr. Produto'] || 'N/A'}>
-                      {venda['Descr. Produto'] || 'Produto não especificado'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{venda.MARCA}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{venda.CIDADE}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{venda.Quantidade}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-green-600">
-  {formatarMoeda(
-    converterValor(venda["Preço Unitário"]) * parseInt(venda.Quantidade || '1')
-  )}
-</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{venda.NomeRepr}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            
-   {/* Sistema de Paginação permanece igual */}
-  </div>
+  <>
+    {/* Versão Desktop - Tabela */}
+    <div className="hidden lg:block overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b bg-gray-50 dark:bg-gray-900">
+            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Data</th>
+            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Cliente</th>
+            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Produto</th>
+            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Marca</th>
+            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Cidade</th>
+            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Qtd</th>
+            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Valor Total</th>
+            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">Vendedor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {dadosPaginados.map((venda) => (
+            <tr key={venda.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 transition-colors">
+              <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{venda['Data de Emissao da NF']}</td>
+              <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{venda.NomeCli}</td>
+              <td className="px-4 py-3 text-sm text-gray-900 dark:text-white truncate max-w-xs" title={venda['Descr. Produto'] || 'N/A'}>
+                {venda['Descr. Produto'] || 'Produto não especificado'}
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{venda.MARCA}</td>
+              <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{venda.CIDADE}</td>
+              <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{venda.Quantidade}</td>
+              <td className="px-4 py-3 text-sm font-medium text-green-600 dark:text-green-400">
+                {formatarMoeda(
+                  converterValor(venda["Preço Unitário"]) * parseInt(venda.Quantidade || '1')
+                )}
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{venda.NomeRepr}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    {/* Versão Mobile - Cards */}
+    <div className="lg:hidden space-y-4">
+      {dadosPaginados.map((venda) => (
+        <div key={venda.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm dark:shadow-gray-900/50">
+          {/* Header do Card */}
+          <div className="flex justify-between items-start mb-3 pb-3 border-b border-gray-100">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                {venda.NomeCli}
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                📅 {venda['Data de Emissao da NF']}
+              </p>
+            </div>
+            <div className="ml-3 text-right flex-shrink-0">
+              <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                {formatarMoeda(
+                  converterValor(venda["Preço Unitário"]) * parseInt(venda.Quantidade || '1')
+                )}
+              </p>
+            </div>
+          </div>
+
+          {/* Detalhes */}
+          <div className="space-y-2">
+            <div>
+              <p className="text-xs text-gray-600 dark:text-gray-300">Produto</p>
+              <p className="text-sm text-gray-900 dark:text-white line-clamp-2">
+                {venda['Descr. Produto'] || 'Produto não especificado'}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <div>
+                <p className="text-xs text-gray-600 dark:text-gray-300">Marca</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {venda.MARCA}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 dark:text-gray-300">Cidade</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {venda.CIDADE}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs text-gray-600 dark:text-gray-300">Quantidade</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {venda.Quantidade}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 dark:text-gray-300">Vendedor</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {venda.NomeRepr}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </>
 ) : (
   /* Nova seção de gráficos */
   <div className="space-y-6">
@@ -1427,12 +1549,12 @@ const resetarPaginacao = () => {
       <div className="text-center py-12">
         <button
           onClick={() => setMostrarModalGrafico(true)}
-          className="inline-flex items-center gap-3 px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-lg font-medium"
+          className="inline-flex items-center gap-3 px-8 py-4 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors text-lg font-medium"
         >
           <BarChart3 className="w-6 h-6" />
           Adicionar Primeiro Gráfico
         </button>
-        <p className="text-gray-500 mt-4">
+        <p className="text-gray-600 dark:text-gray-300 mt-4">
           Clique para escolher como visualizar seus dados em gráficos
         </p>
       </div>
@@ -1440,12 +1562,12 @@ const resetarPaginacao = () => {
       <div className="space-y-6">
         {/* Botão para adicionar mais gráficos */}
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             Gráficos Ativos ({graficos.length})
           </h3>
           <button
             onClick={() => setMostrarModalGrafico(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors text-sm font-medium"
           >
             <Plus className="w-4 h-4" />
             Adicionar Gráfico
@@ -1455,21 +1577,21 @@ const resetarPaginacao = () => {
         {/* Lista de gráficos */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {graficos.map((item) => (
-            <div key={item.id} className="bg-white rounded-lg border" data-grafico-id={item.id}>
+            <div key={item.id} className="bg-white dark:bg-gray-800 rounded-lg border" data-grafico-id={item.id}>
               {/* Cabeçalho do gráfico */}
               <div className="flex items-center justify-between p-4 border-b">
                 <div>
-  <h4 className="font-semibold text-gray-900">{item.config.titulo}</h4>
-  <p className="text-sm text-gray-600">
+  <h4 className="font-semibold text-gray-900 dark:text-white">{item.config.titulo}</h4>
+  <p className="text-sm text-gray-600 dark:text-gray-300">
     Top {item.config.topN} • {item.config.metrica.replace('_', ' ')}
   </p>
   {item.config.filtrosAplicados.length > 0 && (
-    <p className="text-xs text-blue-600 mt-1">
+    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
       Filtros aplicados: {item.config.filtrosAplicados.map(f => `${getFieldConfigSafe(f.tabela, f.campo).label}="${f.valor}"`).join(', ')}
     </p>
   )}
   {item.config.filtrosAplicados.length === 0 && (
-    <p className="text-xs text-gray-500 mt-1">Todos os dados</p>
+    <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">Todos os dados</p>
   )}
 </div>
                 <div className="flex gap-2">
@@ -1478,9 +1600,9 @@ const resetarPaginacao = () => {
                       setConfigTemporaria({...item.config});
                       setMostrarModalConfig(true);
                       // Armazenar ID do gráfico sendo editado
-                      (window as any).graficoEditandoId = item.id;
+                      window.graficoEditandoId = item.id;
                     }}
-                    className="px-3 py-1 text-sm border rounded-lg hover:bg-gray-50"
+                    className="px-3 py-1 text-sm border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900"
                   >
                     ⚙️
                   </button>
@@ -1488,27 +1610,27 @@ const resetarPaginacao = () => {
                     onClick={() => {
                       setGraficos(prev => prev.filter(g => g.id !== item.id));
                     }}
-                    className="px-3 py-1 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
+                    className="px-3 py-1 text-sm border border-red-300 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:bg-red-900/20"
                   >
                     🗑️
                   </button>
                 </div>
               </div>
 
-              {/* Renderização do gráfico */}
+              {/* Renderização do gráfico - MOBILE OTIMIZADO */}
               <div className="p-4">
   {item.config.tipoGrafico === 'rosca' ? (
-    <div className="flex">
+    <div className="flex flex-col md:flex-row">
       {/* Gráfico */}
-      <div style={{ width: '60%', height: '300px' }}>
+      <div className="w-full md:w-3/5 h-[300px] md:h-[350px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={item.dados}
               cx="50%"
               cy="50%"
-              innerRadius={40}
-              outerRadius={100}
+              innerRadius={window.innerWidth < 768 ? 50 : 60}
+              outerRadius={window.innerWidth < 768 ? 90 : 110}
               paddingAngle={3}
               dataKey={item.config.metrica}
               nameKey="nome"
@@ -1517,62 +1639,62 @@ const resetarPaginacao = () => {
                 <Cell key={`cell-${index}`} fill={`hsl(${index * 45}, 70%, 60%)`} />
               ))}
             </Pie>
-            <Tooltip 
+            <Tooltip
               content={({ active, payload }) => {
                 if (active && payload && payload.length) {
                   const data = payload[0].payload;
                   const valor = payload[0].value as number;
                   const nome = data.nome;
-                  
+
                   return (
-                    <div className="bg-white p-3 border rounded-lg shadow-lg">
-                      <p className="font-semibold text-gray-900 mb-2">{nome}</p>
-                      
+                    <div className="bg-white dark:bg-gray-800 p-2 sm:p-3 border rounded-lg shadow-lg dark:shadow-gray-900/50 text-xs sm:text-sm max-w-[200px] sm:max-w-xs">
+                      <p className="font-semibold text-gray-900 dark:text-white mb-1 sm:mb-2 truncate">{nome}</p>
+
                       {item.config.metrica === 'faturamento_total' && (
                         <div className="space-y-1">
-                          <p className="text-sm text-green-600 font-medium">
+                          <p className="text-xs sm:text-sm text-green-600 dark:text-green-400 font-medium">
                             Faturamento: {formatarMoeda(valor)}
                           </p>
-                          <p className="text-sm text-gray-600">
-                            {data.frequencia_vendas} vendas realizadas
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Ticket médio: {formatarMoeda(data.ticket_medio)}
-                          </p>
-                        </div>
-                      )}
-                      
-                      {item.config.metrica === 'frequencia_vendas' && (
-                        <div className="space-y-1">
-                          <p className="text-sm text-blue-600 font-medium">
-                            {valor} vendas realizadas
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Faturamento total: {formatarMoeda(data.faturamento_total)}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Ticket médio: {formatarMoeda(data.ticket_medio)}
-                          </p>
-                        </div>
-                      )}
-                      
-                      {item.config.metrica === 'ticket_medio' && (
-                        <div className="space-y-1">
-                          <p className="text-sm text-purple-600 font-medium">
-                            Ticket médio: {formatarMoeda(valor)}
-                          </p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-xs text-gray-600 dark:text-gray-300">
                             {data.frequencia_vendas} vendas
                           </p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-xs text-gray-600 dark:text-gray-300">
+                            Ticket: {formatarMoeda(data.ticket_medio)}
+                          </p>
+                        </div>
+                      )}
+
+                      {item.config.metrica === 'frequencia_vendas' && (
+                        <div className="space-y-1">
+                          <p className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 font-medium">
+                            {valor} vendas
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-300">
+                            Total: {formatarMoeda(data.faturamento_total)}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-300">
+                            Ticket: {formatarMoeda(data.ticket_medio)}
+                          </p>
+                        </div>
+                      )}
+
+                      {item.config.metrica === 'ticket_medio' && (
+                        <div className="space-y-1">
+                          <p className="text-xs sm:text-sm text-purple-600 dark:text-purple-400 font-medium">
+                            Ticket: {formatarMoeda(valor)}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-300">
+                            {data.frequencia_vendas} vendas
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-300">
                             Total: {formatarMoeda(data.faturamento_total)}
                           </p>
                         </div>
                       )}
-                      
-                      <div className="mt-2 pt-2 border-t border-gray-200">
-                        <p className="text-xs text-gray-500">
-                          Representa {((valor / item.dados.reduce((sum, d) => sum + d[item.config.metrica], 0)) * 100).toFixed(1)}% do total
+
+                      <div className="mt-1 sm:mt-2 pt-1 sm:pt-2 border-t border-gray-200 dark:border-gray-700">
+                        <p className="text-xs text-gray-600 dark:text-gray-300">
+                          {((valor / item.dados.reduce((sum, d) => sum + (d[item.config.metrica] ?? 0), 0)) * 100).toFixed(1)}% do total
                         </p>
                       </div>
                     </div>
@@ -1584,29 +1706,30 @@ const resetarPaginacao = () => {
           </PieChart>
         </ResponsiveContainer>
       </div>
-      
-      {/* Legenda lateral */}
-      <div style={{ width: '40%' }} className="pl-4">
-        <h5 className="text-sm font-medium text-gray-900 mb-3">Legenda</h5>
-        <div className="space-y-2 max-h-72 overflow-y-auto">
+
+      {/* Legenda lateral/inferior */}
+      <div className="w-full md:w-2/5 md:pl-4 mt-4 md:mt-0">
+        <h5 className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white mb-2 sm:mb-3">Legenda</h5>
+        <div className="space-y-1.5 sm:space-y-2 max-h-60 md:max-h-72 overflow-y-auto">
           {item.dados.map((entrada, index) => {
-            const total = item.dados.reduce((sum, d) => sum + d[item.config.metrica], 0);
-            const percentual = ((entrada[item.config.metrica] / total) * 100);
-            
+            const total = item.dados.reduce((sum, d) => sum + (d[item.config.metrica] ?? 0), 0);
+            const valor = entrada[item.config.metrica] ?? 0;
+            const percentual = total > 0 ? ((valor / total) * 100) : 0;
+
             return (
               <div key={index} className="flex items-center text-xs">
-                <div 
-                  className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
+                <div
+                  className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full mr-2 flex-shrink-0"
                   style={{ backgroundColor: `hsl(${index * 45}, 70%, 60%)` }}
                 />
                 <div className="flex-1 min-w-0">
                   <div className="truncate font-medium" title={entrada.nome}>
                     {entrada.nome}
                   </div>
-                  <div className="text-gray-500">
-                    {item.config.metrica.includes('faturamento') || item.config.metrica.includes('ticket') 
-                      ? formatarMoeda(entrada[item.config.metrica])
-                      : entrada[item.config.metrica].toLocaleString('pt-BR')
+                  <div className="text-gray-600 dark:text-gray-300 text-xs">
+                    {item.config.metrica.includes('faturamento') || item.config.metrica.includes('ticket')
+                      ? formatarMoeda(valor)
+                      : valor.toLocaleString('pt-BR')
                     } ({percentual.toFixed(1)}%)
                   </div>
                 </div>
@@ -1617,27 +1740,38 @@ const resetarPaginacao = () => {
       </div>
     </div>
   ) : (
-    /* Gráfico de barras permanece igual */
-    <div style={{ height: '350px' }}>
+    /* Gráfico de barras - MOBILE OTIMIZADO */
+    <div className="h-[400px] sm:h-[450px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={item.dados} margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
+        <BarChart
+          data={item.dados}
+          margin={{
+            top: 20,
+            right: window.innerWidth < 640 ? 10 : 30,
+            left: window.innerWidth < 640 ? 10 : 60,
+            bottom: window.innerWidth < 640 ? 80 : 60
+          }}
+        >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis 
+          <XAxis
             dataKey="nome"
             angle={-45}
             textAnchor="end"
-            height={60}
+            height={window.innerWidth < 640 ? 100 : 80}
             interval={0}
+            tick={{ fontSize: window.innerWidth < 640 ? 9 : 11 }}
             tickFormatter={(nome) => {
-              if (nome.length > 12) {
+              const maxLength = window.innerWidth < 640 ? 8 : 12;
+              if (nome.length > maxLength) {
                 const primeiroNome = nome.split(' ')[0];
-                return primeiroNome.length > 10 ? `${primeiroNome.substring(0, 10)}...` : primeiroNome;
+                return primeiroNome.length > maxLength ? `${primeiroNome.substring(0, maxLength)}...` : primeiroNome;
               }
               return nome;
             }}
           />
-          <YAxis 
-            width={80}
+          <YAxis
+            width={window.innerWidth < 640 ? 50 : 80}
+            tick={{ fontSize: window.innerWidth < 640 ? 9 : 11 }}
             tickFormatter={(value) => {
               if (item.config.metrica.includes('faturamento') || item.config.metrica.includes('ticket')) {
                 if (value >= 1000000) {
@@ -1650,7 +1784,7 @@ const resetarPaginacao = () => {
               return value.toString();
             }}
           />
-          <Tooltip 
+          <Tooltip
             formatter={(value: number) => [
               item.config.metrica.includes('faturamento') || item.config.metrica.includes('ticket')
                 ? formatarMoeda(value)
@@ -1658,8 +1792,13 @@ const resetarPaginacao = () => {
               item.config.metrica.replace('_', ' ')
             ]}
             labelFormatter={(nome) => `${nome}`}
+            contentStyle={{ fontSize: window.innerWidth < 640 ? '11px' : '13px' }}
           />
-          <Bar dataKey={item.config.metrica} fill="hsl(210, 70%, 60%)" />
+          <Bar
+            dataKey={item.config.metrica}
+            fill="hsl(210, 70%, 60%)"
+            maxBarSize={window.innerWidth < 640 ? 30 : 50}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -1675,28 +1814,28 @@ const resetarPaginacao = () => {
       </div>
 {/* Sistema de Paginação */}
       {totalPaginas > 1 && (
-        <div className="mt-4 flex items-center justify-between bg-gray-50 px-4 py-3 border-t border-gray-200 rounded-b-lg">
-          <div className="flex justify-between flex-1 sm:hidden">
+        <div className="mt-4 flex items-center justify-between bg-gray-50 dark:bg-gray-900 px-4 py-3 border-t border-gray-200 dark:border-gray-700 rounded-b-lg">
+          <div className="justify-between flex-1 sm:hidden">
             {/* Versão mobile */}
             <button
               onClick={() => irParaPagina(paginaAtual - 1)}
               disabled={paginaAtual === 1}
-              className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+              className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:bg-gray-100 disabled:text-gray-400"
             >
               Anterior
             </button>
             <button
               onClick={() => irParaPagina(paginaAtual + 1)}
               disabled={paginaAtual === totalPaginas}
-              className="relative ml-3 inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+              className="relative ml-3 inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 disabled:bg-gray-100 disabled:text-gray-400"
             >
               Próxima
             </button>
           </div>
           
-          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+          <div className="hidden sm:flex-1 sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-gray-700 dark:text-gray-200">
                 Mostrando <span className="font-medium">{indiceInicio + 1}</span> até{' '}
                 <span className="font-medium">{Math.min(indiceFim, dadosFiltrados.length)}</span> de{' '}
                 <span className="font-medium">{dadosFiltrados.length}</span> resultados
@@ -1707,7 +1846,7 @@ const resetarPaginacao = () => {
               <button
                 onClick={() => irParaPagina(paginaAtual - 1)}
                 disabled={paginaAtual === 1}
-                className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 disabled:text-gray-300"
+                className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-700 disabled:text-gray-300"
               >
                 ← Anterior
               </button>
@@ -1722,11 +1861,7 @@ const resetarPaginacao = () => {
       <button
         key={pagina}
         onClick={() => irParaPagina(pagina)}
-        className={`px-3 py-2 text-sm rounded-md ${
-          pagina === paginaAtual
-            ? 'bg-blue-600 text-white'
-            : 'text-gray-700 hover:bg-gray-100'
-        }`}
+        className={`px-3 py-2 text-sm rounded-md ${ pagina === paginaAtual ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100' }`}
       >
         {pagina}
       </button>
@@ -1739,7 +1874,7 @@ const resetarPaginacao = () => {
               <button
                 onClick={() => irParaPagina(paginaAtual + 1)}
                 disabled={paginaAtual === totalPaginas}
-                className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 disabled:text-gray-300"
+                className="px-3 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-700 disabled:text-gray-300"
               >
                 Próxima →
               </button>
@@ -1748,12 +1883,12 @@ const resetarPaginacao = () => {
 {/* Modal de Configurações Avançadas */}
 {mostrarModalConfig && configTemporaria && (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-gray-900">Configurações do Gráfico</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Configurações do Gráfico</h2>
         <button
           onClick={() => setMostrarModalConfig(false)}
-          className="text-gray-400 hover:text-gray-600"
+          className="text-gray-600 dark:text-gray-300 hover:text-gray-600"
         >
           <X className="w-6 h-6" />
         </button>
@@ -1762,38 +1897,30 @@ const resetarPaginacao = () => {
       <div className="space-y-6">
         {/* Tipo de Gráfico */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
             Tipo de Visualização
           </label>
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => setConfigTemporaria({...configTemporaria, tipoGrafico: 'rosca'})}
-              className={`p-3 border rounded-lg text-left ${
-                configTemporaria.tipoGrafico === 'rosca' 
-                  ? 'border-blue-500 bg-blue-50' 
-                  : 'border-gray-200 hover:bg-gray-50'
-              }`}
+              className={`p-3 border rounded-lg text-left ${ configTemporaria.tipoGrafico === 'rosca' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50' }`}
             >
               <div className="font-medium">🍩 Rosca</div>
-              <div className="text-xs text-gray-600">Proporções e percentuais</div>
+              <div className="text-xs text-gray-600 dark:text-gray-300">Proporções e percentuais</div>
             </button>
             <button
               onClick={() => setConfigTemporaria({...configTemporaria, tipoGrafico: 'colunas'})}
-              className={`p-3 border rounded-lg text-left ${
-                configTemporaria.tipoGrafico === 'colunas' 
-                  ? 'border-blue-500 bg-blue-50' 
-                  : 'border-gray-200 hover:bg-gray-50'
-              }`}
+              className={`p-3 border rounded-lg text-left ${ configTemporaria.tipoGrafico === 'colunas' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50' }`}
             >
               <div className="font-medium">📊 Colunas</div>
-              <div className="text-xs text-gray-600">Comparação de valores</div>
+              <div className="text-xs text-gray-600 dark:text-gray-300">Comparação de valores</div>
             </button>
           </div>
         </div>
 
         {/* Métrica */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
             Métrica de Análise
           </label>
           <select
@@ -1802,7 +1929,7 @@ const resetarPaginacao = () => {
               ...configTemporaria, 
               metrica: e.target.value as 'faturamento_total' | 'frequencia_vendas' | 'ticket_medio'
             })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500"
           >
             <option value="faturamento_total">💰 Faturamento Total</option>
             <option value="frequencia_vendas">📈 Quantidade de Vendas</option>
@@ -1812,27 +1939,19 @@ const resetarPaginacao = () => {
 
         {/* Top N */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
             Quantidade de Itens
           </label>
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => setConfigTemporaria({...configTemporaria, topN: 5})}
-              className={`p-2 border rounded-lg text-center ${
-                configTemporaria.topN === 5 
-                  ? 'border-blue-500 bg-blue-50' 
-                  : 'border-gray-200 hover:bg-gray-50'
-              }`}
+              className={`p-2 border rounded-lg text-center ${ configTemporaria.topN === 5 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50' }`}
             >
               Top 5
             </button>
             <button
               onClick={() => setConfigTemporaria({...configTemporaria, topN: 10})}
-              className={`p-2 border rounded-lg text-center ${
-                configTemporaria.topN === 10 
-                  ? 'border-blue-500 bg-blue-50' 
-                  : 'border-gray-200 hover:bg-gray-50'
-              }`}
+              className={`p-2 border rounded-lg text-center ${ configTemporaria.topN === 10 ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50' }`}
             >
               Top 10
             </button>
@@ -1840,9 +1959,9 @@ const resetarPaginacao = () => {
         </div>
 
         {/* Preview da Configuração */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h4 className="font-medium text-gray-900 mb-2">Preview:</h4>
-          <p className="text-sm text-gray-600">
+        <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+          <h4 className="font-medium text-gray-900 dark:text-white mb-2">Preview:</h4>
+          <p className="text-sm text-gray-600 dark:text-gray-300">
             <strong>{configTemporaria.titulo}</strong> - 
             {configTemporaria.tipoGrafico === 'rosca' ? ' Gráfico de Rosca' : ' Gráfico de Colunas'} - 
             Top {configTemporaria.topN} por {configTemporaria.metrica.replace('_', ' ')}
@@ -1853,7 +1972,7 @@ const resetarPaginacao = () => {
         <div className="flex gap-3 pt-4 border-t">
           <button
             onClick={() => setMostrarModalConfig(false)}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 transition-colors"
           >
             Cancelar
           </button>
@@ -1861,7 +1980,7 @@ const resetarPaginacao = () => {
             onClick={() => {
               if (configTemporaria) {
                 const dados = processarDadosGrafico(configTemporaria);
-                const graficoId = (window as any).graficoEditandoId;
+                const graficoId = window.graficoEditandoId;
 
                 if (graficoId) {
                   // Editando gráfico existente
@@ -1877,13 +1996,13 @@ const resetarPaginacao = () => {
                         }
                       : g
                   ));
-                  (window as any).graficoEditandoId = null;
+                  window.graficoEditandoId = undefined;
                 }
 
                 setMostrarModalConfig(false);
               }
             }}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
           >
             Aplicar Mudanças
           </button>
@@ -1916,31 +2035,50 @@ const resetarPaginacao = () => {
 
       {/* Modal de Configuração de Gráficos */}
       {mostrarModalGrafico && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto relative">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
+
+            {/* Loading Overlay */}
             {processandoGrafico && (
-              <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg z-10">
+              <div className="absolute inset-0 bg-white dark:bg-gray-800 bg-opacity-75 flex items-center justify-center rounded-lg z-10">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="text-sm text-gray-600 mt-2">Processando gráfico...</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">Processando gráfico...</p>
                 </div>
               </div>
             )}
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Configurar Gráfico</h2>
-              <button
-                onClick={() => setMostrarModalGrafico(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-6 h-6" />
-              </button>
+
+            {/* Header Fixo */}
+            <div className="flex-shrink-0 p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0 pr-4">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-1">
+                    Sugestões de Gráficos
+                  </h2>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+                    Escolha um gráfico para visualizar seus dados
+                  </p>
+                </div>
+                <button
+                  onClick={() => setMostrarModalGrafico(false)}
+                  className="flex-shrink-0 p-2 text-gray-600 dark:text-gray-300 hover:text-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 transition-colors"
+                >
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-6">
-              {/* Análise de Contexto */}
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="font-medium text-blue-900 mb-2">Análise dos Filtros Aplicados:</h3>
-                <div className="text-blue-700 text-sm">
+            {/* Análise dos Filtros - Scroll Area */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+
+              {/* Info Box */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+                <h3 className="text-sm sm:text-base font-semibold text-blue-900 mb-2">
+                  Análise dos Filtros Aplicados:
+                </h3>
+                <div className="text-xs sm:text-sm text-blue-800">
                   {filtros.length === 0 ? (
                     <p>Nenhum filtro aplicado - visualizando todos os dados</p>
                   ) : (
@@ -1961,105 +2099,122 @@ const resetarPaginacao = () => {
                 </div>
               </div>
 
-              {/* Sugestões Inteligentes */}
-              <div>
-                <h3 className="font-medium text-gray-900 mb-3">Sugestões de Gráficos:</h3>
-                <div className="space-y-2">
-                  {gerarSugestoes().map(sugestao => (
-                    <button
-                      key={sugestao.id}
-                      onClick={async () => {
-                        setProcessandoGrafico(true);
+              {/* Grid de Sugestões */}
+              <div className="space-y-3 sm:space-y-4">
+                {gerarSugestoes().map((sugestao) => (
+                  <button
+                    key={sugestao.id}
+                    onClick={async () => {
+                      setProcessandoGrafico(true);
 
-                        try {
-                          const config: GraficoConfig = {
-                            campoAgrupamento: sugestao.campo,
-                            metrica: sugestao.metrica,
-                            tipoGrafico: sugestao.tipoGrafico,
-                            topN: 10,
-                            titulo: sugestao.titulo,
-                            filtrosAplicados: [...filtros] // Salvar cópia dos filtros atuais
-                          };
+                      try {
+                        const config: GraficoConfig = {
+                          campoAgrupamento: sugestao.campo,
+                          metrica: sugestao.metrica,
+                          tipoGrafico: sugestao.tipoGrafico,
+                          topN: 10,
+                          titulo: sugestao.titulo,
+                          filtrosAplicados: [...filtros]
+                        };
 
-                          // Pequeno delay para mostrar o loading
-                          await new Promise(resolve => setTimeout(resolve, 100));
+                        await new Promise(resolve => setTimeout(resolve, 100));
 
-                          const dados = processarDadosGrafico(config);
+                        const dados = processarDadosGrafico(config);
 
-                          if (dados.length === 0) {
-                            alert('Não foi possível gerar o gráfico. Dados insuficientes ou filtros muito restritivos.');
-                            return;
-                          }
-
-                          const novoGrafico = {
-                            id: `grafico-${proximoId}`,
-                            config,
-                            dados
-                          };
-
-                          setGraficos(prev => [...prev, novoGrafico]);
-                          setProximoId(prev => prev + 1);
-                          setMostrarModalGrafico(false);
-                        } finally {
-                          setProcessandoGrafico(false);
+                        if (dados.length === 0) {
+                          alert('Não foi possível gerar o gráfico. Dados insuficientes ou filtros muito restritivos.');
+                          return;
                         }
-                      }}
-                      className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <div className={`font-medium ${sugestao.cor}`}>
-                        {sugestao.icone} {sugestao.titulo}
-                      </div>
-                      <div className="text-sm text-gray-600">{sugestao.descricao}</div>
-                      <div className="text-xs text-gray-400 mt-1">
-                        Métrica: {sugestao.metrica.replace('_', ' ')} • Tipo: {sugestao.tipoGrafico}
-                      </div>
-                    </button>
-                  ))}
-                </div>
 
-                {gerarSugestoes().length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <p>Todas as opções de gráficos relevantes já estão sendo filtradas.</p>
-                    <p className="text-sm mt-2">Remova alguns filtros para ver mais sugestões.</p>
-                  </div>
-                ) : dadosFiltrados.length < 10 && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                    <div className="flex items-center">
-                      <div className="text-yellow-600 mr-3">⚠️</div>
-                      <div>
-                        <p className="text-sm font-medium text-yellow-800">
-                          Poucos dados detectados ({dadosFiltrados.length} registros)
+                        const novoGrafico = {
+                          id: `grafico-${proximoId}`,
+                          config,
+                          dados
+                        };
+
+                        setGraficos(prev => [...prev, novoGrafico]);
+                        setProximoId(prev => prev + 1);
+                        setMostrarModalGrafico(false);
+                      } finally {
+                        setProcessandoGrafico(false);
+                      }
+                    }}
+                    className="w-full text-left bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4 hover:border-blue-500 hover:shadow-md dark:shadow-gray-900/50 transition-all group"
+                  >
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      {/* Ícone */}
+                      <div className="flex-shrink-0 text-2xl sm:text-3xl">
+                        {sugestao.icone}
+                      </div>
+
+                      {/* Conteúdo */}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 mb-1 line-clamp-1">
+                          {sugestao.titulo}
+                        </h4>
+                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-2 line-clamp-2">
+                          {sugestao.descricao}
                         </p>
-                        <p className="text-xs text-yellow-700 mt-1">
-                          Gráficos com menos de 10 registros podem não ser muito informativos.
-                          Considere remover alguns filtros para obter mais dados.
-                        </p>
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded">
+                            Métrica: {sugestao.metrica}
+                          </span>
+                          <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
+                            Tipo: {sugestao.tipoGrafico}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Seta */}
+                      <div className="flex-shrink-0 text-gray-600 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
                       </div>
                     </div>
-                  </div>
-                )}
+                  </button>
+                ))}
               </div>
 
-              {/* Botões de Ação */}
-              <div className="flex gap-3 pt-4 border-t">
-                <button
-                  onClick={() => setMostrarModalGrafico(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => {
-                    // Implementar geração do gráfico
-                    console.log('Gerar gráfico...');
-                    setMostrarModalGrafico(false);
-                  }}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Gerar Gráfico
-                </button>
-              </div>
+              {/* Mensagem se não houver sugestões */}
+              {gerarSugestoes().length === 0 ? (
+                <div className="text-center py-8 sm:py-12">
+                  <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">📊</div>
+                  <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">
+                    Todas as opções de gráficos relevantes já estão sendo filtradas.
+                  </p>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-2">
+                    Remova alguns filtros para ver mais sugestões.
+                  </p>
+                </div>
+              ) : dadosFiltrados.length < 10 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4 mt-4">
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <div className="flex-shrink-0 text-yellow-600 text-lg sm:text-xl">⚠️</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs sm:text-sm font-medium text-yellow-800">
+                        Poucos dados detectados ({dadosFiltrados.length} registros)
+                      </p>
+                      <p className="text-xs text-yellow-700 mt-1">
+                        Gráficos com menos de 10 registros podem não ser muito informativos.
+                        Considere remover alguns filtros para obter mais dados.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* Footer Fixo */}
+            <div className="flex-shrink-0 p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+              <button
+                onClick={() => setMostrarModalGrafico(false)}
+                className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+
           </div>
         </div>
       )}
@@ -2067,12 +2222,12 @@ const resetarPaginacao = () => {
       {/* Modal de Edição de Filtro */}
       {filtroEditando && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-lg w-full mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Editar Filtro</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Editar Filtro</h2>
               <button
                 onClick={() => setFiltroEditando(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-600 dark:text-gray-300 hover:text-gray-600"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -2081,39 +2236,39 @@ const resetarPaginacao = () => {
             <div className="space-y-4">
               {/* Tabela (desabilitada) */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                   Tabela (não editável)
                 </label>
                 <input
                   type="text"
                   value={getNomeTabela(filtroEditando.tabela)}
                   disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                 />
               </div>
 
               {/* Campo (desabilitado) */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                   Campo (não editável)
                 </label>
                 <input
                   type="text"
                   value={getFieldConfigSafe(filtroEditando.tabela, filtroEditando.campo).label}
                   disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                 />
               </div>
 
               {/* Operador (editável) */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                   Operador
                 </label>
                 <select
                   value={filtroEditando.operador}
                   onChange={(e) => setFiltroEditando({...filtroEditando, operador: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   {getOperatorsForField(filtroEditando.tabela, filtroEditando.campo).map((op: { value: string; label: string }) => (
                     <option key={op.value} value={op.value}>{op.label}</option>
@@ -2123,14 +2278,14 @@ const resetarPaginacao = () => {
 
               {/* Valor (editável) */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                   Valor
                 </label>
                 {getFieldConfigSafe(filtroEditando.tabela, filtroEditando.campo).tipo === 'select' ? (
                   <select
                     value={filtroEditando.valor}
                     onChange={(e) => setFiltroEditando({...filtroEditando, valor: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
                     {obterValoresUnicos(filtroEditando.tabela, filtroEditando.campo).map(valor => (
                       <option key={valor} value={valor}>{valor}</option>
@@ -2141,7 +2296,7 @@ const resetarPaginacao = () => {
                     type="text"
                     value={filtroEditando.valor}
                     onChange={(e) => setFiltroEditando({...filtroEditando, valor: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 )}
               </div>
@@ -2151,7 +2306,7 @@ const resetarPaginacao = () => {
             <div className="flex gap-3 pt-6 border-t mt-6">
               <button
                 onClick={() => setFiltroEditando(null)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 transition-colors"
               >
                 Cancelar
               </button>
@@ -2163,7 +2318,7 @@ const resetarPaginacao = () => {
                   ));
                   setFiltroEditando(null);
                 }}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
               >
                 Salvar Alterações
               </button>

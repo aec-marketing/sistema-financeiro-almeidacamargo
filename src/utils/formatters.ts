@@ -7,11 +7,31 @@
  * Formatar data brasileira (DD/MM/YYYY)
  */
 export function formatarData(data: string | Date | null | undefined): string {
-  if (!data) return 'Data não informada'
+  if (!data) return 'Sem data'
 
   try {
+    // Se for string, verificar se já está em formato brasileiro DD/MM/YYYY
+    if (typeof data === 'string') {
+      // Se já está no formato DD/MM/YYYY, retornar como está
+      if (data.includes('/') && data.split('/').length === 3) {
+        const [dia, mes, ano] = data.split('/')
+        if (dia && mes && ano && ano.length === 4) {
+          return data
+        }
+      }
+
+      // Se está no formato ISO (YYYY-MM-DD)
+      if (data.includes('-')) {
+        const [ano, mes, dia] = data.split('-')
+        if (ano && mes && dia) {
+          return `${dia.padStart(2, '0')}/${mes.padStart(2, '0')}/${ano}`
+        }
+      }
+    }
+
+    // Tentar converter para Date
     const dataObj = typeof data === 'string' ? new Date(data) : data
-    
+
     if (isNaN(dataObj.getTime())) {
       return 'Data inválida'
     }
@@ -328,7 +348,7 @@ export function validarEmail(email: string | null | undefined): boolean {
  */
 export function gerarIniciais(nome: string | null | undefined): string {
   if (!nome) return '??'
-  
+
   return nome
     .split(' ')
     .filter(palavra => palavra.length > 0)
@@ -336,3 +356,64 @@ export function gerarIniciais(nome: string | null | undefined): string {
     .map(palavra => palavra.charAt(0).toUpperCase())
     .join('')
 }
+
+/**
+ * Formatadores para copiar dados
+ */
+export const formatarParaCopiar = {
+  cnpj: (cnpj: string): string => {
+    // Remove formatação e retorna apenas números
+    return cnpj.replace(/\D/g, '');
+  },
+
+  cnpjFormatado: (cnpj: string): string => {
+    // Formata: 00.000.000/0000-00
+    const numeros = cnpj.replace(/\D/g, '');
+    if (numeros.length !== 14) return cnpj;
+    return numeros.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+  },
+
+  telefone: (telefone: string): string => {
+    // Remove formatação
+    return telefone.replace(/\D/g, '');
+  },
+
+  telefoneFormatado: (telefone: string): string => {
+    // Formata: (00) 00000-0000 ou (00) 0000-0000
+    const numeros = telefone.replace(/\D/g, '');
+    if (numeros.length === 11) {
+      return numeros.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+    } else if (numeros.length === 10) {
+      return numeros.replace(/^(\d{2})(\d{4})(\d{4})$/, '($1) $2-$3');
+    }
+    return telefone;
+  },
+
+  cep: (cep: string): string => {
+    // Remove formatação
+    return cep.replace(/\D/g, '');
+  },
+
+  cepFormatado: (cep: string): string => {
+    // Formata: 00000-000
+    const numeros = cep.replace(/\D/g, '');
+    if (numeros.length !== 8) return cep;
+    return numeros.replace(/^(\d{5})(\d{3})$/, '$1-$2');
+  },
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  endereco: (cliente: any): string => {
+    // Monta endereço completo
+    const partes = [
+      cliente.endereco,
+      cliente.Município,
+      cliente['Sigla Estado'],
+      cliente.CEP
+    ].filter(Boolean);
+    return partes.join(', ');
+  },
+
+  email: (email: string): string => {
+    return email.trim().toLowerCase();
+  }
+};

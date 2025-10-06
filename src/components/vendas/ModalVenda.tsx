@@ -1,5 +1,5 @@
 // src/components/vendas/ModalVenda.tsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { X, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useUserAccess } from '../../hooks/useUserAccess'
@@ -159,7 +159,7 @@ export default function ModalVenda({
     }
   }
 
-  const buscarDadosCliente = async (codigo: string) => {
+  const buscarDadosCliente = useCallback(async (codigo: string) => {
     if (buscandoDados) return
     setBuscandoDados(true)
 
@@ -188,9 +188,9 @@ export default function ModalVenda({
     } finally {
       setBuscandoDados(false)
     }
-  }
+  }, [buscandoDados])
 
-  const buscarDadosProduto = async (codigo: string) => {
+  const buscarDadosProduto = useCallback(async (codigo: string) => {
     if (buscandoDados) return
     setBuscandoDados(true)
 
@@ -219,9 +219,9 @@ export default function ModalVenda({
     } finally {
       setBuscandoDados(false)
     }
-  }
+  }, [buscandoDados])
 
-  const verificarDuplicataNF = async (numeroNF: string) => {
+  const verificarDuplicataNF = useCallback(async (numeroNF: string) => {
     try {
       const { data, error } = await supabase
         .from('vendas')
@@ -244,7 +244,7 @@ export default function ModalVenda({
     } catch (error) {
       console.error('Erro ao verificar duplicata:', error)
     }
-  }
+  }, [modo, vendaParaEditar])
 
   // Buscar dados do cliente quando código muda
   useEffect(() => {
@@ -253,7 +253,7 @@ export default function ModalVenda({
     } else {
       setPreviewData(prev => ({ ...prev, cliente: undefined }))
     }
-  }, [formData.codigoCliente])
+  }, [buscarDadosCliente, formData.codigoCliente])
 
   // Buscar dados do produto quando código muda
   useEffect(() => {
@@ -262,7 +262,7 @@ export default function ModalVenda({
     } else {
       setPreviewData(prev => ({ ...prev, produto: undefined }))
     }
-  }, [formData.codigoProduto])
+  }, [buscarDadosProduto, formData.codigoProduto])
 
   // Verificar duplicata de NF quando número muda
   useEffect(() => {
@@ -271,7 +271,7 @@ export default function ModalVenda({
     } else {
       setAlertaDuplicata(null)
     }
-  }, [formData.numeroNF])
+  }, [formData.numeroNF, verificarDuplicataNF])
 
   const handleInputChange = (campo: keyof FormData, valor: string) => {
     setFormData(prev => ({
@@ -396,18 +396,18 @@ export default function ModalVenda({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             {modo === 'criar' ? '➕ Nova Venda' : '✏️ Editar Venda'}
           </h2>
           <button 
             onClick={onClose}
             disabled={loading}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 rounded-full transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
           </button>
         </div>
 
@@ -415,7 +415,7 @@ export default function ModalVenda({
         <div className="p-6 space-y-6">
           {/* Código do Cliente */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
               Código do Cliente *
             </label>
             <input
@@ -423,13 +423,13 @@ export default function ModalVenda({
               value={formData.codigoCliente}
               onChange={(e) => handleInputChange('codigoCliente', e.target.value)}
               placeholder="Digite o código do cliente"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={loading}
             />
             {previewData.cliente && (
-              <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
+              <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 rounded-md">
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
                   <span className="text-sm font-medium text-green-800">
                     {previewData.cliente.nome}
                   </span>
@@ -443,7 +443,7 @@ export default function ModalVenda({
 
           {/* Código do Produto */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
               Código do Produto *
             </label>
             <input
@@ -451,18 +451,18 @@ export default function ModalVenda({
               value={formData.codigoProduto}
               onChange={(e) => handleInputChange('codigoProduto', e.target.value)}
               placeholder="Digite o código do produto"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={loading}
             />
             {previewData.produto && (
-              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-md">
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-blue-600" />
+                  <CheckCircle className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   <span className="text-sm font-medium text-blue-800">
                     {previewData.produto.descricao}
                   </span>
                 </div>
-                <div className="text-sm text-blue-700 mt-1">
+                <div className="text-sm text-blue-700 dark:text-blue-300 mt-1">
                   🏷️ {previewData.produto.marca} • 📦 {previewData.produto.grupo}
                 </div>
               </div>
@@ -471,13 +471,13 @@ export default function ModalVenda({
 
           {/* Representante */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
               Representante *
             </label>
             <select
               value={formData.representanteId}
               onChange={(e) => handleInputChange('representanteId', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={loading}
             >
               <option value="">Selecione um representante</option>
@@ -492,7 +492,7 @@ export default function ModalVenda({
           {/* Grid: Quantidade e Preço */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                 Quantidade *
               </label>
               <input
@@ -501,13 +501,13 @@ export default function ModalVenda({
                 onChange={(e) => handleInputChange('quantidade', e.target.value)}
                 min="0.01"
                 step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={loading}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                 Preço Unitário *
               </label>
               <input
@@ -515,7 +515,7 @@ export default function ModalVenda({
                 value={formData.precoUnitario}
                 onChange={(e) => handleInputChange('precoUnitario', e.target.value)}
                 placeholder="0,00"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={loading}
               />
             </div>
@@ -524,20 +524,20 @@ export default function ModalVenda({
           {/* Grid: Data e NF */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                 Data da Venda *
               </label>
               <input
                 type="date"
                 value={formData.dataVenda}
                 onChange={(e) => handleInputChange('dataVenda', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={loading}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                 Número da NF *
               </label>
               <input
@@ -545,7 +545,7 @@ export default function ModalVenda({
                 value={formData.numeroNF}
                 onChange={(e) => handleInputChange('numeroNF', e.target.value)}
                 placeholder="Número da nota fiscal"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={loading}
               />
             </div>
@@ -562,10 +562,10 @@ export default function ModalVenda({
           )}
 
           {/* Total Calculado */}
-          <div className="p-4 bg-gray-50 border border-gray-200 rounded-md">
+          <div className="p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md">
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">Total da Venda:</span>
-              <span className="text-lg font-bold text-green-600">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Total da Venda:</span>
+              <span className="text-lg font-bold text-green-600 dark:text-green-400">
                 {formatarMoeda(calcularTotal())}
               </span>
             </div>
@@ -573,18 +573,18 @@ export default function ModalVenda({
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-200 flex gap-3 justify-end">
+        <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex gap-3 justify-end">
           <button
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+            className="px-4 py-2 text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 rounded-md transition-colors"
           >
             Cancelar
           </button>
           <button
             onClick={salvarVenda}
             disabled={loading || buscandoDados}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2 bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
             {modo === 'criar' ? 'Criar Venda' : 'Atualizar Venda'}

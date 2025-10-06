@@ -4,11 +4,12 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useUserAccess } from '../../hooks/useUserAccess'
 import { calcularTotalVenda } from '../../utils/calcular-total'
-import { 
-  TrendingUp, 
-  DollarSign, 
-  Users, 
-  Target, 
+import { useClipboard } from '../../hooks/useClipboard'
+import {
+  TrendingUp,
+  DollarSign,
+  Users,
+  Target,
   Calendar,
   Phone,
   MapPin,
@@ -17,8 +18,8 @@ import {
   AlertCircle,
   FileText,
   UserCircle,
-    Search,  // ADICIONAR
-  Copy     // ADICIONAR
+  Search,
+  Copy
 } from 'lucide-react'
 
 // Interfaces
@@ -64,11 +65,12 @@ interface ContatoCliente {
 
 const VendedorDashboard: React.FC = () => {
   const navigate = useNavigate()
-  const { 
-    user, 
-    loading: authLoading, 
-    error: authError, 
+  const {
+    user,
+    loading: authLoading,
+    error: authError,
     representanteName  } = useUserAccess()
+  const { copyToClipboard } = useClipboard()
 
   // Estados
   const [kpis, setKpis] = useState<VendedorKPIs>({
@@ -117,6 +119,10 @@ const VendedorDashboard: React.FC = () => {
   const [contatosClientes, setContatosClientes] = useState<ContatoCliente[]>([])
   const [searchContato, setSearchContato] = useState('')
   const [loadingContatos, setLoadingContatos] = useState(false)
+
+  // Modal de detalhes do cliente
+  const [clienteSelecionado, setClienteSelecionado] = useState<ClienteVendedor | null>(null)
+  const [showModalCliente, setShowModalCliente] = useState(false)
 
   // Funções utilitárias
 
@@ -469,11 +475,11 @@ const VendedorDashboard: React.FC = () => {
     return (
       <div className="p-6 max-w-6xl mx-auto">
         <div className="animate-pulse space-y-6">
-          <div className="bg-gray-200 h-32 rounded-xl"></div>
+          <div className="bg-gray-200 dark:bg-gray-700 h-32 rounded-xl"></div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-gray-200 h-24 rounded-xl"></div>
-            <div className="bg-gray-200 h-24 rounded-xl"></div>
-            <div className="bg-gray-200 h-24 rounded-xl"></div>
+            <div className="bg-gray-200 dark:bg-gray-700 h-24 rounded-xl"></div>
+            <div className="bg-gray-200 dark:bg-gray-700 h-24 rounded-xl"></div>
+            <div className="bg-gray-200 dark:bg-gray-700 h-24 rounded-xl"></div>
           </div>
         </div>
       </div>
@@ -484,12 +490,12 @@ const VendedorDashboard: React.FC = () => {
   if (error || authError) {
     return (
       <div className="p-6 max-w-6xl mx-auto">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-xl p-6">
           <div className="flex items-center">
-            <AlertCircle className="h-6 w-6 text-red-600 mr-3" />
+            <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400 mr-3" />
             <div>
               <h3 className="text-red-800 font-semibold">Erro ao carregar dados</h3>
-              <p className="text-red-600 text-sm mt-1">{error || authError}</p>
+              <p className="text-red-600 dark:text-red-400 text-sm mt-1">{error || authError}</p>
             </div>
           </div>
         </div>
@@ -500,11 +506,11 @@ const VendedorDashboard: React.FC = () => {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       {/* Header personalizado */}
-      <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-xl shadow-lg text-white p-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
-          <div className="mb-4 sm:mb-0">
+      <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-xl shadow-lg dark:shadow-gray-900/50 text-white p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex-1">
             <div className="flex items-center space-x-3 mb-2">
-              <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+              <div className="w-12 h-12 bg-white dark:bg-gray-800 bg-opacity-20 rounded-full flex items-center justify-center">
                 <span className="text-2xl">🛒</span>
               </div>
               <div>
@@ -512,17 +518,38 @@ const VendedorDashboard: React.FC = () => {
                 <p className="text-green-100">Dashboard Pessoal</p>
               </div>
             </div>
+
+            {/* Botão Copiar Resumo */}
+            <button
+              onClick={() => {
+                const mesNome = mesesDisponiveis.find(m => m.valor === mesSelecionado)?.label || mesSelecionado
+                const texto = `
+📊 Meu Resumo de Vendas - ${mesNome}
+
+💰 Faturamento: ${formatarMoeda(kpis.faturamentoMes)}
+📦 Vendas: ${kpis.vendasMes}
+🎯 Ticket Médio: ${formatarMoeda(kpis.ticketMedio)}
+👥 Clientes Atendidos: ${kpis.clientesAtendidos}
+📈 Meta: ${Math.round(kpis.percentualMeta)}% (${formatarMoeda(kpis.faturamentoMes)} de ${formatarMoeda(kpis.metaMensal)})
+                `.trim()
+                copyToClipboard(texto, 'Resumo copiado! Cole no WhatsApp ou email.')
+              }}
+              className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 bg-opacity-20 hover:bg-opacity-30 rounded-lg text-sm font-medium transition-colors"
+            >
+              <Copy className="h-4 w-4" />
+              Copiar Resumo
+            </button>
           </div>
           
           {/* Meta do mês */}
-          <div className="bg-white bg-opacity-10 rounded-lg p-4 text-center min-w-[200px]">
+          <div className="bg-white dark:bg-gray-800 bg-opacity-10 rounded-lg p-4 text-center min-w-[200px]">
             <select
               value={mesSelecionado}
               onChange={(e) => setMesSelecionado(e.target.value)}
-              className="mb-2 px-3 py-1 rounded bg-white bg-opacity-20 text-white text-sm border border-white border-opacity-30"
+              className="mb-2 px-3 py-1 rounded bg-white dark:bg-gray-800 bg-opacity-20 text-white text-sm border border-white border-opacity-30"
             >
               {mesesDisponiveis.map((mes) => (
-                <option key={mes.valor} value={mes.valor} className="text-gray-900">
+                <option key={mes.valor} value={mes.valor} className="text-gray-900 dark:text-white">
                   {mes.label}
                 </option>
               ))}
@@ -532,7 +559,7 @@ const VendedorDashboard: React.FC = () => {
             <div className="text-2xl font-bold">{Math.round(kpis.percentualMeta)}%</div>
             <div className="w-full bg-green-400 rounded-full h-2 mt-2">
               <div 
-                className="bg-white h-2 rounded-full transition-all duration-500" 
+                className="bg-white dark:bg-gray-800 h-2 rounded-full transition-all duration-500" 
                 style={{ width: `${Math.min(kpis.percentualMeta, 100)}%` }}
               ></div>
             </div>
@@ -543,95 +570,134 @@ const VendedorDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* KPIs Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Vendas do mês */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
+      {/* KPIs Cards - MOBILE OPTIMIZED */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+
+        {/* Vendas Este Mês */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-4 border-l-4 border-blue-500">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-blue-600 font-medium text-sm">Vendas Este Mês</p>
-              <p className="text-3xl font-bold text-blue-800">{kpis.vendasMes}</p>
-              <p className="text-blue-500 text-xs">transações realizadas</p>
+            <div className="flex-1 min-w-0 pr-3">
+              <p className="text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 mb-1">
+                Vendas Este Mês
+              </p>
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white truncate">
+                {kpis.vendasMes}
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                transações realizadas
+              </p>
             </div>
-            <TrendingUp className="h-8 w-8 text-blue-400" />
+            <div className="flex-shrink-0">
+              <TrendingUp className="h-8 w-8 sm:h-10 sm:w-10 text-blue-500" />
+            </div>
           </div>
         </div>
 
-        {/* Faturamento */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500">
+        {/* Meu Faturamento */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-4 border-l-4 border-green-500">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-green-600 font-medium text-sm">Meu Faturamento</p>
-              <p className="text-2xl font-bold text-green-800">{formatarMoeda(kpis.faturamentoMes)}</p>
-              <p className="text-green-500 text-xs">neste mês</p>
+            <div className="flex-1 min-w-0 pr-3">
+              <p className="text-xs sm:text-sm font-medium text-green-600 dark:text-green-400 mb-1">
+                Meu Faturamento
+              </p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white break-words">
+                {formatarMoeda(kpis.faturamentoMes)}
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                neste mês
+              </p>
             </div>
-            <DollarSign className="h-8 w-8 text-green-400" />
+            <div className="flex-shrink-0">
+              <DollarSign className="h-8 w-8 sm:h-10 sm:w-10 text-green-500" />
+            </div>
           </div>
         </div>
 
         {/* Ticket Médio */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-purple-500">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-4 border-l-4 border-purple-500">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-purple-600 font-medium text-sm">Ticket Médio</p>
-              <p className="text-2xl font-bold text-purple-800">{formatarMoeda(kpis.ticketMedio)}</p>
-              <p className="text-purple-500 text-xs">por venda</p>
+            <div className="flex-1 min-w-0 pr-3">
+              <p className="text-xs sm:text-sm font-medium text-purple-600 dark:text-purple-400 mb-1">
+                Ticket Médio
+              </p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white break-words">
+                {formatarMoeda(kpis.ticketMedio)}
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                por venda
+              </p>
             </div>
-            <Target className="h-8 w-8 text-purple-400" />
+            <div className="flex-shrink-0">
+              <Target className="h-8 w-8 sm:h-10 sm:w-10 text-purple-500" />
+            </div>
           </div>
         </div>
 
-        {/* Clientes Atendidos */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-orange-500">
+        {/* Meus Clientes */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-4 border-l-4 border-orange-500">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-orange-600 font-medium text-sm">Meus Clientes</p>
-              <p className="text-3xl font-bold text-orange-800">{kpis.clientesAtendidos}</p>
-              <p className="text-orange-500 text-xs">atendidos este mês</p>
+            <div className="flex-1 min-w-0 pr-3">
+              <p className="text-xs sm:text-sm font-medium text-orange-600 dark:text-orange-400 mb-1">
+                Meus Clientes
+              </p>
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white truncate">
+                {kpis.clientesAtendidos}
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                atendidos este mês
+              </p>
             </div>
-            <Users className="h-8 w-8 text-orange-400" />
+            <div className="flex-shrink-0">
+              <Users className="h-8 w-8 sm:h-10 sm:w-10 text-orange-500" />
+            </div>
           </div>
         </div>
 
         {/* Status da Meta */}
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-sm p-6 text-white sm:col-span-2">
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-sm dark:shadow-gray-900/50 p-4 sm:p-6 text-white sm:col-span-2 lg:col-span-2">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-emerald-100 font-medium text-sm">Status da Meta</p>
-              <p className="text-3xl font-bold">{Math.round(kpis.percentualMeta)}%</p>
-              <p className="text-emerald-200 text-sm">
-                {kpis.percentualMeta >= 100 
-                  ? '🎉 Meta batida! Parabéns!' 
-                  : kpis.percentualMeta >= 80 
+            <div className="flex-1 min-w-0 pr-3">
+              <p className="text-xs sm:text-sm text-emerald-100 font-medium mb-1">
+                Status da Meta
+              </p>
+              <p className="text-2xl sm:text-3xl font-bold truncate">
+                {Math.round(kpis.percentualMeta)}%
+              </p>
+              <p className="text-xs sm:text-sm text-emerald-200 mt-1">
+                {kpis.percentualMeta >= 100
+                  ? '🎉 Meta batida! Parabéns!'
+                  : kpis.percentualMeta >= 80
                     ? '🔥 Quase lá! Continue assim!'
                     : '💪 Vamos acelerar!'
                 }
               </p>
             </div>
-            <Award className="h-10 w-10 text-emerald-200" />
+            <div className="flex-shrink-0">
+              <Award className="h-8 w-8 sm:h-10 sm:w-10 text-emerald-200" />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Seções principais */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Minhas Últimas Vendas / Maiores Vendas do Mês */}
-        <div className="bg-white rounded-xl shadow-sm">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <Clock className="h-5 w-5 mr-2 text-blue-600" />
+        {/* Minhas Últimas Vendas / Maiores Vendas do Mês - MOBILE OPTIMIZED */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50">
+          <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                <Clock className="h-5 w-5 mr-2 text-blue-600 dark:text-blue-400" />
                 {mostrarMaioresVendas ? 'Maiores Vendas do Mês' : 'Minhas Últimas Vendas'}
               </h3>
               <button
                 onClick={() => setMostrarMaioresVendas(!mostrarMaioresVendas)}
-                className="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
+                className="self-start sm:self-auto px-3 py-1.5 text-xs sm:text-sm bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 text-blue-700 dark:text-blue-300 rounded-md transition-colors font-medium"
               >
                 {mostrarMaioresVendas ? 'Ver Últimas' : 'Ver Maiores'}
               </button>
             </div>
           </div>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {(mostrarMaioresVendas ? maioresVendasMes : minhasVendas).length > 0 ? (
               <div className="space-y-3">
                 {(mostrarMaioresVendas ? maioresVendasMes : minhasVendas).map((venda) => {
@@ -641,71 +707,118 @@ const VendedorDashboard: React.FC = () => {
                     venda['Preço Unitário']
                   )
                   return (
-                    <div key={venda.id} className="flex items-start justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900 text-sm truncate">
-                          {venda['Descr. Produto']}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {venda.NomeCli} • {venda.CIDADE}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          NF: {venda['Número da Nota Fiscal']} • {formatarData(venda['Data de Emissao da NF'])}
-                        </p>
+                    <div key={venda.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 sm:p-4 hover:border-blue-300 hover:shadow-sm dark:shadow-gray-900/50 transition-all">
+                      {/* Header: Produto + Valor */}
+                      <div className="flex justify-between items-start gap-3 mb-2">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-2 mb-1">
+                            {venda['Descr. Produto']}
+                          </h4>
+                          <p className="text-xs text-gray-600 dark:text-gray-300 truncate">
+                            {venda.NomeCli}
+                          </p>
+                        </div>
+                        <div className="flex-shrink-0 text-right">
+                          <p className="text-base sm:text-lg font-bold text-green-600 dark:text-green-400 whitespace-nowrap">
+                            {formatarMoeda(valorTotal)}
+                          </p>
+                        </div>
                       </div>
-                      <div className="ml-4 text-right">
-                        <p className="font-bold text-green-600">{formatarMoeda(valorTotal)}</p>
+
+                      {/* Footer: Detalhes */}
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 pt-2 border-t border-gray-100 text-xs text-gray-600 dark:text-gray-300">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {venda.CIDADE}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {formatarData(venda['Data de Emissao da NF'])}
+                        </span>
+                        <span className="text-gray-600 dark:text-gray-300">
+                          NF: {venda['Número da Nota Fiscal']}
+                        </span>
                       </div>
                     </div>
                   )
                 })}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Clock className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                <p>{mostrarMaioresVendas ? 'Nenhuma venda no mês selecionado' : 'Nenhuma venda registrada'}</p>
+              <div className="text-center py-8 text-gray-600 dark:text-gray-300">
+                <Clock className="h-12 w-12 mx-auto mb-3 text-gray-600 dark:text-gray-300" />
+                <p className="text-sm">{mostrarMaioresVendas ? 'Nenhuma venda no mês selecionado' : 'Nenhuma venda registrada'}</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Meus Principais Clientes */}
-        <div className="bg-white rounded-xl shadow-sm">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Users className="h-5 w-5 mr-2 text-orange-600" />
-              Meus Principais Clientes
-            </h3>
-          </div>
-          <div className="p-6">
-            {meusClientes.length > 0 ? (
-              <div className="space-y-3">
-                {meusClientes.map((cliente, index) => (
-                  <div key={index} className="flex items-start p-3 bg-gray-50 rounded-lg">
-                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-bold mr-3 flex-shrink-0">
-                      #{index + 1}
-                    </div>
-                    <div className="flex-1 min-w-0 mr-4">
-                      <p className="font-medium text-gray-900 text-sm break-words leading-relaxed">{cliente.nome}</p>
-                      <p className="text-xs text-gray-500 flex items-center mt-1">
-                        <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
-                        <span className="break-words">{cliente.cidade || 'N/A'}</span>
-                      </p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="font-bold text-orange-600 text-sm">{formatarMoeda(cliente.faturamentoTotal)}</p>
-                      <p className="text-xs text-gray-500 whitespace-nowrap">{cliente.totalCompras} compras</p>
+        {/* Meus Principais Clientes - REDESIGNED */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <Users className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+            Meus Principais Clientes
+          </h3>
+
+          {meusClientes.length === 0 ? (
+            <div className="text-center py-8 text-gray-600 dark:text-gray-300">
+              <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">Nenhum cliente atendido este mês</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {meusClientes.slice(0, 5).map((cliente, index) => (
+                <div
+                  key={index}
+                  onClick={() => {
+                    setClienteSelecionado(cliente)
+                    setShowModalCliente(true)
+                  }}
+                  className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-orange-300 hover:bg-orange-50 dark:bg-orange-900/20 transition-all cursor-pointer"
+                >
+                  {/* Badge de Posição */}
+                  <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                    index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                    index === 1 ? 'bg-gray-100 text-gray-700' :
+                    index === 2 ? 'bg-orange-100 text-orange-700' :
+                    'bg-blue-50 text-blue-600'
+                  }`}>
+                    #{index + 1}
+                  </div>
+
+                  {/* Informações do Cliente */}
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white truncate mb-1">
+                      {cliente.nome}
+                    </h4>
+                    <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-300">
+                      {cliente.cidade && (
+                        <span className="flex items-center gap-1 truncate">
+                          <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          <span className="truncate">{cliente.cidade}</span>
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1 flex-shrink-0">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                        </svg>
+                        {cliente.totalCompras}
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Users className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                <p>Nenhum cliente encontrado</p>
-              </div>
-            )}
-          </div>
+
+                  {/* Valor Total */}
+                  <div className="flex-shrink-0 text-right">
+                    <p className="text-sm sm:text-base font-bold text-orange-600 dark:text-orange-400 whitespace-nowrap">
+                      {formatarMoeda(cliente.faturamentoTotal)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -713,56 +826,56 @@ const VendedorDashboard: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <button
           onClick={() => navigate(`/clientes?vendedor=${encodeURIComponent(representanteName || '')}`)}
-          className="bg-white hover:bg-blue-50 border-2 border-blue-200 rounded-xl p-6 text-center transition-all hover:shadow-md"
+          className="bg-white dark:bg-gray-800 hover:bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 rounded-xl p-6 text-center transition-all hover:shadow-md dark:shadow-gray-900/50"
         >
-          <UserCircle className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-          <p className="font-semibold text-gray-900">Meus Clientes</p>
+          <UserCircle className="h-8 w-8 text-blue-600 dark:text-blue-400 mx-auto mb-2" />
+          <p className="font-semibold text-gray-900 dark:text-white">Meus Clientes</p>
         </button>
 
         <button
           onClick={abrirModalContatos}
-          className="bg-white hover:bg-green-50 border-2 border-green-200 rounded-xl p-6 text-center transition-all hover:shadow-md"
+          className="bg-white dark:bg-gray-800 hover:bg-green-50 dark:bg-green-900/20 border-2 border-green-200 rounded-xl p-6 text-center transition-all hover:shadow-md dark:shadow-gray-900/50"
         >
-          <Phone className="h-8 w-8 text-green-600 mx-auto mb-2" />
-          <p className="font-semibold text-gray-900">Contatos</p>
+          <Phone className="h-8 w-8 text-green-600 dark:text-green-400 mx-auto mb-2" />
+          <p className="font-semibold text-gray-900 dark:text-white">Contatos</p>
         </button>
 
         <button
           onClick={() => navigate('/relatorios')}
-          className="bg-white hover:bg-purple-50 border-2 border-purple-200 rounded-xl p-6 text-center transition-all hover:shadow-md"
+          className="bg-white dark:bg-gray-800 hover:bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-200 rounded-xl p-6 text-center transition-all hover:shadow-md dark:shadow-gray-900/50"
         >
-          <FileText className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-          <p className="font-semibold text-gray-900">Relatórios</p>
+          <FileText className="h-8 w-8 text-purple-600 dark:text-purple-400 mx-auto mb-2" />
+          <p className="font-semibold text-gray-900 dark:text-white">Relatórios</p>
         </button>
 
         <button
           onClick={() => alert('⏰ Funcionalidade de Agenda em desenvolvimento!\n\nEm breve você poderá:\n• Agendar visitas a clientes\n• Visualizar compromissos\n• Receber lembretes automáticos')}
-          className="bg-white hover:bg-orange-50 border-2 border-orange-200 rounded-xl p-6 text-center transition-all hover:shadow-md"
+          className="bg-white dark:bg-gray-800 hover:bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-200 rounded-xl p-6 text-center transition-all hover:shadow-md dark:shadow-gray-900/50"
         >
-          <Calendar className="h-8 w-8 text-orange-600 mx-auto mb-2" />
-          <p className="font-semibold text-gray-900">Agenda</p>
+          <Calendar className="h-8 w-8 text-orange-600 dark:text-orange-400 mx-auto mb-2" />
+          <p className="font-semibold text-gray-900 dark:text-white">Agenda</p>
         </button>
       </div>
 
       {/* Modal de Contatos */}
       {showModalContatos && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[85vh] overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-4xl max-h-[85vh] overflow-hidden">
             {/* Header do Modal */}
-            <div className="p-6 border-b border-gray-200">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <Phone className="h-6 w-6 text-green-600 mr-3" />
+                  <Phone className="h-6 w-6 text-green-600 dark:text-green-400 mr-3" />
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Meus Contatos</h3>
-                    <p className="text-sm text-gray-500">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Meus Contatos</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
                       {contatosClientes.length} clientes com informações de contato
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowModalContatos(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-600 dark:text-gray-300 hover:text-gray-600 transition-colors"
                 >
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -772,13 +885,13 @@ const VendedorDashboard: React.FC = () => {
 
               {/* Campo de Busca */}
               <div className="mt-4 relative">
-                <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Search className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 dark:text-gray-300" />
                 <input
                   type="text"
                   placeholder="Buscar por nome ou cidade..."
                   value={searchContato}
                   onChange={(e) => setSearchContato(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 />
               </div>
             </div>
@@ -788,29 +901,29 @@ const VendedorDashboard: React.FC = () => {
               {loadingContatos ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="animate-spin h-8 w-8 border-4 border-green-500 border-t-transparent rounded-full"></div>
-                  <span className="ml-3 text-gray-600">Carregando contatos...</span>
+                  <span className="ml-3 text-gray-600 dark:text-gray-300">Carregando contatos...</span>
                 </div>
               ) : contatosFiltrados.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {contatosFiltrados.map((contato, index) => (
-                    <div key={index} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
+                    <div key={index} className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                       {/* Header do Contato */}
                       <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center flex-1 min-w-0 mr-4">
-                          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-bold mr-3 flex-shrink-0">
+                        <div className="items-center flex-1 min-w-0 mr-4">
+                          <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 font-bold mr-3 flex-shrink-0">
                             {contato.nome.charAt(0).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-gray-900 truncate">{contato.nome}</h4>
-                            <p className="text-sm text-gray-500 flex items-center">
+                            <h4 className="font-semibold text-gray-900 dark:text-white truncate">{contato.nome}</h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center">
                               <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
                               <span className="truncate">{contato.cidade}</span>
                             </p>
                           </div>
                         </div>
                         <div className="text-right text-sm flex-shrink-0">
-                          <p className="font-semibold text-green-600">{formatarMoeda(contato.faturamentoTotal)}</p>
-                          <p className="text-gray-500">{contato.totalCompras} compras</p>
+                          <p className="font-semibold text-green-600 dark:text-green-400">{formatarMoeda(contato.faturamentoTotal)}</p>
+                          <p className="text-gray-600 dark:text-gray-300">{contato.totalCompras} compras</p>
                         </div>
                       </div>
 
@@ -819,20 +932,20 @@ const VendedorDashboard: React.FC = () => {
                         {contato.telefone && (
                           <div className="flex items-center justify-between">
                             <div className="flex items-center">
-                              <Phone className="h-4 w-4 text-gray-400 mr-2" />
-                              <span className="text-sm text-gray-700">{formatarTelefone(contato.telefone)}</span>
+                              <Phone className="h-4 w-4 text-gray-600 dark:text-gray-300 mr-2" />
+                              <span className="text-sm text-gray-700 dark:text-gray-200">{formatarTelefone(contato.telefone)}</span>
                             </div>
                             <div className="flex items-center space-x-1">
                               <button
                                 onClick={() => copiarTelefone(contato.telefone!)}
-                                className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
+                                className="p-1 text-gray-600 dark:text-gray-300 hover:text-gray-700 transition-colors"
                                 title="Copiar número"
                               >
                                 <Copy className="h-4 w-4" />
                               </button>
                               <a
                                 href={`tel:+55${contato.telefone.replace(/\D/g, '')}`}
-                                className="p-1 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
+                                className="p-1 bg-blue-500 hover:bg-blue-600 dark:bg-blue-500 text-white rounded transition-colors"
                                 title="Ligar"
                               >
                                 <Phone className="h-4 w-4" />
@@ -856,8 +969,8 @@ const VendedorDashboard: React.FC = () => {
                       </div>
 
                       {/* Última Compra */}
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        <p className="text-xs text-gray-500">
+                      <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                        <p className="text-xs text-gray-600 dark:text-gray-300">
                           Última compra: {formatarData(contato.ultimaCompra)}
                         </p>
                       </div>
@@ -866,11 +979,11 @@ const VendedorDashboard: React.FC = () => {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <Phone className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  <Phone className="h-12 w-12 mx-auto mb-4 text-gray-600 dark:text-gray-300" />
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                     {searchContato ? 'Nenhum contato encontrado' : 'Nenhum contato disponível'}
                   </h3>
-                  <p className="text-gray-500">
+                  <p className="text-gray-600 dark:text-gray-300">
                     {searchContato
                       ? 'Tente buscar com outros termos'
                       : 'Os clientes não possuem informações de contato cadastradas'
@@ -881,8 +994,8 @@ const VendedorDashboard: React.FC = () => {
             </div>
 
             {/* Footer do Modal */}
-            <div className="p-4 bg-gray-50 border-t border-gray-200">
-              <div className="flex items-center justify-between text-sm text-gray-600">
+            <div className="p-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
                 <span>Total: {contatosFiltrados.length} contatos</span>
                 <button
                   onClick={() => setShowModalContatos(false)}
@@ -891,6 +1004,103 @@ const VendedorDashboard: React.FC = () => {
                   Fechar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalhes do Cliente */}
+      {showModalCliente && clienteSelecionado && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg">
+            {/* Header */}
+            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-1 truncate">
+                    {clienteSelecionado.nome}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    Detalhes do Cliente
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowModalCliente(false)}
+                  className="flex-shrink-0 ml-3 p-2 text-gray-600 dark:text-gray-300 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 sm:p-6 space-y-4">
+              {/* Card de Faturamento Total */}
+              <div className="bg-gradient-to-r from-orange-50 to-orange-100 p-4 rounded-lg border border-orange-200">
+                <p className="text-sm text-orange-600 dark:text-orange-400 font-medium mb-1">Faturamento Total</p>
+                <p className="text-2xl sm:text-3xl font-bold text-orange-900">
+                  {formatarMoeda(clienteSelecionado.faturamentoTotal)}
+                </p>
+              </div>
+
+              {/* Informações do Cliente */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Total de Compras */}
+                <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg className="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 font-medium">Total de Compras</p>
+                  </div>
+                  <p className="text-xl font-bold text-gray-900 dark:text-white">
+                    {clienteSelecionado.totalCompras}
+                  </p>
+                </div>
+
+                {/* Ticket Médio */}
+                <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg className="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 font-medium">Ticket Médio</p>
+                  </div>
+                  <p className="text-xl font-bold text-gray-900 dark:text-white">
+                    {formatarMoeda(clienteSelecionado.faturamentoTotal / clienteSelecionado.totalCompras)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Localização */}
+              {clienteSelecionado.cidade && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-0.5">Localização</p>
+                      <p className="text-sm font-semibold text-blue-900 truncate">
+                        {clienteSelecionado.cidade}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+              <button
+                onClick={() => setShowModalCliente(false)}
+                className="w-full px-4 py-2.5 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 transition-colors"
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>

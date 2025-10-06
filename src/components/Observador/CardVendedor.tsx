@@ -31,12 +31,12 @@ export function CardVendedor({
   const iniciais = gerarIniciais(vendedor.nome);
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-gray-100 hover:border-blue-300 transition-all">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-gray-900/50 p-6 border-2 border-gray-100 hover:border-blue-300 transition-all">
       
       {/* Header do Card - Avatar e Nome */}
       <div className="flex items-center gap-4 mb-4">
         {/* Avatar */}
-        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-lg shadow-md">
+        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-lg shadow-md dark:shadow-gray-900/50">
           {vendedor.avatar ? (
             <img 
               src={vendedor.avatar} 
@@ -50,17 +50,17 @@ export function CardVendedor({
 
         {/* Nome e Email */}
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-bold text-gray-800 truncate">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 truncate">
             {vendedor.nome}
           </h3>
-          <p className="text-xs text-gray-500 truncate">
+          <p className="text-xs text-gray-600 dark:text-gray-300 truncate">
             {vendedor.email}
           </p>
         </div>
       </div>
 
       {/* Meta Anual (Compacta) */}
-      <div className="mb-4 pb-4 border-b border-gray-200">
+      <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
         <BarraProgressoMeta
           valorRealizado={vendedor.vendasAnoAtual}
           valorMeta={vendedor.metaAnual}
@@ -86,8 +86,8 @@ export function CardVendedor({
       </div>
 
       {/* Top 3 Marcas */}
-      <div className="bg-gray-50 rounded-lg p-3">
-        <h4 className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">
+      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
+        <h4 className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2 uppercase tracking-wide">
           Top 3 Marcas
         </h4>
         
@@ -98,16 +98,11 @@ export function CardVendedor({
               className="flex items-center justify-between"
             >
               {/* Posição e Nome da Marca */}
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <span className={`
-                  text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center
-                  ${index === 0 ? 'bg-yellow-400 text-yellow-900' : ''}
-                  ${index === 1 ? 'bg-gray-300 text-gray-700' : ''}
-                  ${index === 2 ? 'bg-orange-400 text-orange-900' : ''}
-                `}>
+              <div className="items-center gap-2 flex-1 min-w-0">
+                <span className={`text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center 0 'bg-yellow-400 text-yellow-900' 1 'bg-gray-300 text-gray-700' ${index === 2 ? 'bg-orange-400 text-orange-900' : ''}`}>
                   {index + 1}
                 </span>
-                <span className="text-sm font-medium text-gray-700 truncate">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">
                   {marca.nome}
                 </span>
               </div>
@@ -115,7 +110,7 @@ export function CardVendedor({
               {/* Valor e Percentual */}
               <div className="text-right">
                 {!modoPrivado && (
-                  <div className="text-sm font-bold text-gray-800">
+                  <div className="text-sm font-bold text-gray-800 dark:text-gray-100">
                     {formatarMoeda(marca.total)}
                   </div>
                 )}
@@ -129,7 +124,7 @@ export function CardVendedor({
 
         {/* Mensagem se não houver marcas */}
         {vendedor.top3Marcas.length === 0 && (
-          <p className="text-xs text-gray-400 text-center py-2">
+          <p className="text-xs text-gray-600 dark:text-gray-300 text-center py-2">
             Sem vendas de marcas registradas
           </p>
         )}

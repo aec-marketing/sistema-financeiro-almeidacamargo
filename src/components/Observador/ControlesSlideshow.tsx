@@ -59,13 +59,7 @@ export function ControlesSlideshow({
               <button
                 key={i}
                 onClick={() => onIrPara(i)}
-                className={`
-                  transition-all duration-300
-                  ${i === slideAtual 
-                    ? 'w-10 h-3 bg-blue-500 rounded-full' 
-                    : 'w-3 h-3 bg-gray-500 rounded-full hover:bg-gray-400'
-                  }
-                `}
+                className={`transition-all duration-300 ${i === slideAtual ? 'w-5 h-5 bg-blue-500 rounded-full' : 'w-3 h-3 bg-gray-500 rounded-full hover:bg-gray-400'}`}
                 aria-label={`Ir para slide ${i + 1}`}
               />
             ))}
@@ -74,7 +68,7 @@ export function ControlesSlideshow({
           {/* Contador de Slides */}
           <div className="text-sm font-medium bg-gray-700 px-4 py-2 rounded-lg">
             <span className="text-blue-400 font-bold">{slideAtual + 1}</span>
-            <span className="text-gray-400 mx-1">/</span>
+            <span className="text-gray-600 dark:text-gray-300 mx-1">/</span>
             <span className="text-gray-300">{totalSlides}</span>
           </div>
 
@@ -97,13 +91,7 @@ export function ControlesSlideshow({
           {/* Botão Play/Pause */}
           <button
             onClick={isPausado ? onRetomar : onPausar}
-            className={`
-              flex items-center gap-2 px-5 py-2 rounded-lg font-medium transition-all
-              ${isPausado 
-                ? 'bg-green-600 hover:bg-green-500' 
-                : 'bg-yellow-600 hover:bg-yellow-500'
-              }
-            `}
+            className={`flex items-center gap-2 px-5 py-2 rounded-lg font-medium transition-all ${isPausado ? 'bg-green-600 hover:bg-green-500' : 'bg-yellow-600 hover:bg-yellow-500' }`}
             aria-label={isPausado ? 'Retomar slideshow' : 'Pausar slideshow'}
           >
             {isPausado ? (

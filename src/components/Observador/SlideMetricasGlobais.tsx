@@ -57,7 +57,7 @@ export function SlideMetricasGlobais({
         </span>
       );
     }
-    return <span className="text-gray-500">0%</span>;
+    return <span className="text-gray-600 dark:text-gray-300">0%</span>;
   };
 
   return (
@@ -65,10 +65,10 @@ export function SlideMetricasGlobais({
       
       {/* Título do Slide */}
       <div className="mb-6">
-        <h2 className="text-4xl font-bold text-gray-800 mb-2">
+        <h2 className="text-4xl font-bold text-gray-800 dark:text-gray-100 mb-2">
           Métricas Globais
         </h2>
-        <p className="text-xl text-gray-600">
+        <p className="text-xl text-gray-600 dark:text-gray-300">
           {obterNomeMesCompleto(mesAtual)} de {anoAtual}
         </p>
       </div>
@@ -77,60 +77,60 @@ export function SlideMetricasGlobais({
       <div className="grid grid-cols-4 gap-4 mb-6">
         
         {/* Faturamento Total */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
-          <div className="text-sm text-gray-600 mb-2">Faturamento Total</div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-gray-900/50 p-6 border-l-4 border-blue-500">
+          <div className="text-sm text-gray-600 dark:text-gray-300 mb-2">Faturamento Total</div>
           {!modoPrivado ? (
-            <div className="text-3xl font-bold text-gray-800 mb-2">
+            <div className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">
               {formatarMoedaCompacta(metricas.faturamentoTotal)}
             </div>
           ) : (
-            <div className="text-3xl font-bold text-gray-400 mb-2">
+            <div className="text-3xl font-bold text-gray-600 dark:text-gray-300 mb-2">
               [Privado]
             </div>
           )}
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-gray-500">vs mês anterior:</span>
+            <span className="text-gray-600 dark:text-gray-300">vs mês anterior:</span>
             <IconeTendencia valor={metricas.comparativoMesAnterior.faturamento} />
           </div>
         </div>
 
         {/* Total de Vendas */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
-          <div className="text-sm text-gray-600 mb-2">Total de Vendas</div>
-          <div className="text-3xl font-bold text-gray-800 mb-2">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-gray-900/50 p-6 border-l-4 border-green-500">
+          <div className="text-sm text-gray-600 dark:text-gray-300 mb-2">Total de Vendas</div>
+          <div className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">
             {formatarNumero(metricas.totalVendas)}
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-gray-500">vs mês anterior:</span>
+            <span className="text-gray-600 dark:text-gray-300">vs mês anterior:</span>
             <IconeTendencia valor={metricas.comparativoMesAnterior.vendas} />
           </div>
         </div>
 
         {/* Clientes Ativos */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
-          <div className="text-sm text-gray-600 mb-2">Clientes Ativos</div>
-          <div className="text-3xl font-bold text-gray-800 mb-2">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-gray-900/50 p-6 border-l-4 border-purple-500">
+          <div className="text-sm text-gray-600 dark:text-gray-300 mb-2">Clientes Ativos</div>
+          <div className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">
             {formatarNumero(metricas.clientesAtivos)}
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-gray-500">vs mês anterior:</span>
+            <span className="text-gray-600 dark:text-gray-300">vs mês anterior:</span>
             <IconeTendencia valor={metricas.comparativoMesAnterior.clientes} />
           </div>
         </div>
 
         {/* Ticket Médio */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500">
-          <div className="text-sm text-gray-600 mb-2">Ticket Médio</div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-gray-900/50 p-6 border-l-4 border-orange-500">
+          <div className="text-sm text-gray-600 dark:text-gray-300 mb-2">Ticket Médio</div>
           {!modoPrivado ? (
-            <div className="text-3xl font-bold text-gray-800 mb-2">
+            <div className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">
               {formatarMoeda(metricas.ticketMedio)}
             </div>
           ) : (
-            <div className="text-3xl font-bold text-gray-400 mb-2">
+            <div className="text-3xl font-bold text-gray-600 dark:text-gray-300 mb-2">
               [Privado]
             </div>
           )}
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-gray-600 dark:text-gray-300">
             por venda
           </div>
         </div>
@@ -140,8 +140,8 @@ export function SlideMetricasGlobais({
       <div className="flex-1 grid grid-cols-2 gap-6">
         
         {/* Top 5 Produtos */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-gray-900/50 p-6">
+          <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
             <span className="text-2xl">🏆</span>
             Top 5 Produtos Mais Vendidos
           </h3>
@@ -150,13 +150,7 @@ export function SlideMetricasGlobais({
             {topProdutos.map((produto, index) => (
               <div key={produto.codigoReferencia} className="flex items-center gap-3">
                 {/* Posição */}
-                <div className={`
-                  w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
-                  ${index === 0 ? 'bg-yellow-400 text-yellow-900' : ''}
-                  ${index === 1 ? 'bg-gray-300 text-gray-700' : ''}
-                  ${index === 2 ? 'bg-orange-400 text-orange-900' : ''}
-                  ${index > 2 ? 'bg-blue-100 text-blue-700' : ''}
-                `}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm 0 'bg-yellow-400 text-yellow-900' 1 'bg-gray-300 text-gray-700' === 'bg-orange-400 text-orange-900' ${index > 2 ? 'bg-blue-100 text-blue-700' : ''}`}>
                   {index + 1}
                 </div>
 
@@ -164,33 +158,33 @@ export function SlideMetricasGlobais({
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex-1 min-w-0 mr-2">
-                      <div className="text-sm font-medium text-gray-700 truncate">
+                      <div className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">
                         {produto.descricao}
                       </div>
-                      <div className="text-xs text-blue-600 font-semibold mt-0.5">
+                      <div className="text-xs text-blue-600 dark:text-blue-400 font-semibold mt-0.5">
                         {produto.marca}
                       </div>
                     </div>
                     {!modoPrivado ? (
-                      <span className="text-sm font-bold text-gray-800 flex-shrink-0">
+                      <span className="text-sm font-bold text-gray-800 dark:text-gray-100 flex-shrink-0">
                         {formatarMoeda(produto.faturamento)}
                       </span>
                     ) : (
-                      <span className="text-sm font-bold text-blue-600 flex-shrink-0">
+                      <span className="text-sm font-bold text-blue-600 dark:text-blue-400 flex-shrink-0">
                         {formatarPercentual(produto.percentualTotal, 1)}
                       </span>
                     )}
                   </div>
 
                   {/* Barra de progresso */}
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                     <div
                       className="bg-blue-500 h-2 rounded-full transition-all duration-500"
                       style={{ width: `${produto.percentualTotal}%` }}
                     />
                   </div>
 
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
                     {formatarPercentual(produto.percentualTotal, 1)} do total • {produto.numeroVendas} vendas
                   </div>
                 </div>
@@ -199,15 +193,15 @@ export function SlideMetricasGlobais({
           </div>
 
           {topProdutos.length === 0 && (
-            <p className="text-center text-gray-400 py-8">
+            <p className="text-center text-gray-600 dark:text-gray-300 py-8">
               Nenhum produto vendido neste período
             </p>
           )}
         </div>
 
         {/* Top 5 Clientes */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-gray-900/50 p-6">
+          <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
             <span className="text-2xl">👥</span>
             Top 5 Clientes do Mês
           </h3>
@@ -216,24 +210,18 @@ export function SlideMetricasGlobais({
             {topClientes.map((cliente, index) => (
               <div key={cliente.nomeCliente} className="border-b border-gray-100 pb-3 last:border-0">
                 <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <div className="items-start gap-3 flex-1 min-w-0">
                     {/* Posição */}
-                    <div className={`
-                      w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0
-                      ${index === 0 ? 'bg-yellow-400 text-yellow-900' : ''}
-                      ${index === 1 ? 'bg-gray-300 text-gray-700' : ''}
-                      ${index === 2 ? 'bg-orange-400 text-orange-900' : ''}
-                      ${index > 2 ? 'bg-purple-100 text-purple-700' : ''}
-                    `}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 0 'bg-yellow-400 text-yellow-900' 1 'bg-gray-300 text-gray-700' === 'bg-orange-400 text-orange-900' ${index > 2 ? 'bg-purple-100 text-purple-700' : ''}`}>
                       {index + 1}
                     </div>
 
                     {/* Nome e Cidade */}
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-gray-800 truncate">
+                      <div className="font-semibold text-gray-800 dark:text-gray-100 truncate">
                         {cliente.nomeCliente}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-600 dark:text-gray-300">
                         {cliente.cidade}
                       </div>
                     </div>
@@ -242,15 +230,15 @@ export function SlideMetricasGlobais({
                   {/* Valores */}
                   <div className="text-right ml-2">
                     {!modoPrivado ? (
-                      <div className="text-lg font-bold text-gray-800">
+                      <div className="text-lg font-bold text-gray-800 dark:text-gray-100">
                         {formatarMoeda(cliente.faturamento)}
                       </div>
                     ) : (
-                      <div className="text-lg font-bold text-purple-600">
+                      <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
                         [Privado]
                       </div>
                     )}
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-gray-600 dark:text-gray-300">
                       {cliente.numeroCompras} compras
                     </div>
                   </div>
@@ -258,7 +246,7 @@ export function SlideMetricasGlobais({
 
                 {/* Ticket Médio */}
                 {!modoPrivado && (
-                  <div className="text-xs text-gray-600 ml-11">
+                  <div className="text-xs text-gray-600 dark:text-gray-300 ml-11">
                     Ticket médio: {formatarMoeda(cliente.ticketMedio)}
                   </div>
                 )}
@@ -267,7 +255,7 @@ export function SlideMetricasGlobais({
           </div>
 
           {topClientes.length === 0 && (
-            <p className="text-center text-gray-400 py-8">
+            <p className="text-center text-gray-600 dark:text-gray-300 py-8">
               Nenhum cliente encontrado neste período
             </p>
           )}

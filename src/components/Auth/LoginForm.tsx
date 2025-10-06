@@ -73,23 +73,23 @@ console.log('✅ onSuccess executado'); // ADICIONE ESTA LINHA
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-blue-600 rounded-xl flex items-center justify-center mb-4">
+          <div className="mx-auto h-16 w-16 bg-blue-600 dark:bg-blue-500 rounded-xl flex items-center justify-center mb-4">
             <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
                     d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </div>
-          <h2 className="text-3xl font-bold text-gray-900">Sistema Financeiro</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            <span className="font-semibold text-blue-600">Almeida&Camargo</span> - Automação Industrial
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Sistema Financeiro</h2>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+            <span className="font-semibold text-blue-600 dark:text-blue-400">Almeida&Camargo</span> - Automação Industrial
           </p>
         </div>
 
         {/* Form */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 space-y-6">
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                 Email
               </label>
               <input
@@ -98,14 +98,14 @@ console.log('✅ onSuccess executado'); // ADICIONE ESTA LINHA
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 placeholder="seu@email.com"
                 disabled={loading}
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                 Senha
               </label>
               <input
@@ -114,14 +114,14 @@ console.log('✅ onSuccess executado'); // ADICIONE ESTA LINHA
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 placeholder="••••••••"
                 disabled={loading}
               />
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-lg p-4">
                 <div className="flex items-center">
                   <svg className="h-5 w-5 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
@@ -135,7 +135,7 @@ console.log('✅ onSuccess executado'); // ADICIONE ESTA LINHA
             <button
               type="submit"
               disabled={loading || !email || !password}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center"
+              className="w-full bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-300 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center"
             >
               {loading ? (
                 <>
@@ -153,14 +153,14 @@ console.log('✅ onSuccess executado'); // ADICIONE ESTA LINHA
 
           {/* Info */}
           <div className="text-center pt-4 border-t border-gray-100">
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-600 dark:text-gray-300">
               Sistema interno - Acesso restrito aos colaboradores
             </p>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="text-center text-xs text-gray-400">
+        <div className="text-center text-xs text-gray-600 dark:text-gray-300">
           <p>&copy; 2025 Almeida&Camargo - Automação e Segurança Industrial</p>
           <p className="mt-1">Sorocaba, São Paulo</p>
         </div>

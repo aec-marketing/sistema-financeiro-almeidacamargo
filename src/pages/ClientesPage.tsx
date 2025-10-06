@@ -7,6 +7,8 @@ import { filtrarClientesVirtuais } from '../utils/clientes-filtrados'
 import { calcularTotalVenda } from '../utils/calcular-total'
 import BotaoDuplicatas from '../components/BotaoDuplicatas'
 import { useUserAccess } from '../hooks/useUserAccess'
+import CopyButton from '../components/CopyButton'
+import { formatarParaCopiar } from '../utils/formatters'
 
 // Tipos para vendas e métricas
 interface VendaCliente {
@@ -308,20 +310,29 @@ function ModalVendasCliente({ cliente, isOpen, onClose }: {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-gray-900/50 max-w-4xl w-full max-h-[90vh] overflow-hidden">
         {/* Header do Modal */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">{cliente.Nome}</h2>
-            <p className="text-sm text-gray-600 mt-1">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">{cliente.Nome}</h2>
+              {cliente.CNPJ && (
+                <CopyButton
+                  text={formatarParaCopiar.cnpj(cliente.CNPJ)}
+                  successMessage="CNPJ do cliente copiado!"
+                  showLabel
+                />
+              )}
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
               {cliente.Município} - {cliente['Sigla Estado'] || 'SP'}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 rounded-lg transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
           </button>
         </div>
 
@@ -337,13 +348,13 @@ function ModalVendasCliente({ cliente, isOpen, onClose }: {
               {/* Métricas do Cliente */}
               {metricas && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Métricas do Cliente</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Métricas do Cliente</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     {/* Card Total de Vendas */}
-                    <div className="bg-blue-50 rounded-lg p-4">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-blue-600">Total de Vendas</p>
+                          <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Total de Vendas</p>
                           <p className="text-2xl font-bold text-blue-900">{metricas.totalVendas}</p>
                         </div>
                         <TrendingUp className="w-8 h-8 text-blue-500" />
@@ -351,10 +362,10 @@ function ModalVendasCliente({ cliente, isOpen, onClose }: {
                     </div>
 
                     {/* Card Faturamento Total */}
-                    <div className="bg-green-50 rounded-lg p-4">
+                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-green-600">Faturamento Total</p>
+                          <p className="text-sm font-medium text-green-600 dark:text-green-400">Faturamento Total</p>
                           <p className="text-2xl font-bold text-green-900">
                             {formatarMoeda(metricas.faturamentoTotal)}
                           </p>
@@ -364,10 +375,10 @@ function ModalVendasCliente({ cliente, isOpen, onClose }: {
                     </div>
 
                     {/* Card Ticket Médio */}
-                    <div className="bg-purple-50 rounded-lg p-4">
+                    <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-purple-600">Ticket Médio</p>
+                          <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Ticket Médio</p>
                           <p className="text-2xl font-bold text-purple-900">
                             {formatarMoeda(metricas.ticketMedio)}
                           </p>
@@ -379,37 +390,33 @@ function ModalVendasCliente({ cliente, isOpen, onClose }: {
 
                   {/* Informações Adicionais */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="font-semibold text-gray-900 mb-2">Status do Cliente</h4>
+                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Status do Cliente</h4>
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Status:</span>
-                          <span className={`text-sm font-medium px-2 py-1 rounded-full ${
-                            metricas.statusAtivo 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
+                          <span className="text-sm text-gray-600 dark:text-gray-300">Status:</span>
+                          <span className={`text-sm font-medium px-2 py-1 rounded-full ${ metricas.statusAtivo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }`}>
                             {metricas.statusAtivo ? 'Ativo' : 'Inativo'}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Frequência:</span>
+                          <span className="text-sm text-gray-600 dark:text-gray-300">Frequência:</span>
                           <span className="text-sm font-medium">{metricas.frequenciaCompras}</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="font-semibold text-gray-900 mb-2">Histórico de Compras</h4>
+                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Histórico de Compras</h4>
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Primeira compra:</span>
+                          <span className="text-sm text-gray-600 dark:text-gray-300">Primeira compra:</span>
                           <span className="text-sm font-medium">
                             {metricas.primeiraCompra || 'N/A'}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Última compra:</span>
+                          <span className="text-sm text-gray-600 dark:text-gray-300">Última compra:</span>
                           <span className="text-sm font-medium">
                             {metricas.ultimaCompra || 'N/A'}
                           </span>
@@ -422,20 +429,27 @@ function ModalVendasCliente({ cliente, isOpen, onClose }: {
 
               {/* Lista de Vendas */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Últimas Transações</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Últimas Transações</h3>
                 {vendas.length > 0 ? (
                   <div className="space-y-3">
                     {vendas.map((venda) => (
-                      <div key={venda.id} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
+                      <div key={venda.id} className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h4 className="font-medium text-gray-900 mb-1">
+                            <h4 className="font-medium text-gray-900 dark:text-white mb-1">
                               {venda['Descr. Produto'] || 'Produto não identificado'}
                             </h4>
-                            <div className="text-sm text-gray-600 space-y-1">
+                            <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
                               <div className="flex items-center gap-4">
                                 <span>{venda['Data de Emissao da NF']}</span>
-                                <span>NF: {venda['Número da Nota Fiscal']}</span>
+                                <div className="flex items-center gap-2">
+                                  <span>NF: {venda['Número da Nota Fiscal']}</span>
+                                  <CopyButton
+                                    text={venda['Número da Nota Fiscal']}
+                                    successMessage="Número da NF copiado!"
+                                    iconSize={12}
+                                  />
+                                </div>
                                 <span>Qtd: {venda.Quantidade}</span>
                               </div>
                               <div>
@@ -444,7 +458,7 @@ function ModalVendasCliente({ cliente, isOpen, onClose }: {
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-lg font-bold text-green-600">
+                            <div className="text-lg font-bold text-green-600 dark:text-green-400">
   {formatarMoeda(calcularTotalVenda(
     venda.total,
     venda.Quantidade,
@@ -458,7 +472,7 @@ function ModalVendasCliente({ cliente, isOpen, onClose }: {
                     
                     {vendas.length === 50 && (
                       <div className="text-center py-4">
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
                           Mostrando as últimas 50 transações
                         </p>
                       </div>
@@ -467,7 +481,7 @@ function ModalVendasCliente({ cliente, isOpen, onClose }: {
                 ) : (
                   <div className="text-center py-8">
                     <TrendingUp className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">Nenhuma venda encontrada para este cliente</p>
+                    <p className="text-gray-600 dark:text-gray-300">Nenhuma venda encontrada para este cliente</p>
                   </div>
                 )}
               </div>
@@ -487,11 +501,11 @@ function StatCard({ title, value, icon: Icon, color }: {
   color: string
 }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6 border border-gray-100 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-300">{title}</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{value}</p>
         </div>
         <div className={`p-3 rounded-full ${color}`}>
           <Icon className="w-6 h-6 text-white" />
@@ -507,12 +521,12 @@ function ClienteCard({ cliente, onVerVendas }: {
   onVerVendas: (cliente: Cliente) => void 
 }) {
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md dark:shadow-gray-900/50 transition-shadow">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           {/* Nome da empresa com badge */}
           <div className="flex items-center gap-2 mb-3">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               {cliente.Nome || 'Nome não informado'}
             </h3>
             <ClienteBadgeMesclado clienteId={cliente.id} />
@@ -522,16 +536,21 @@ function ClienteCard({ cliente, onVerVendas }: {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* CNPJ - sempre visível se existir */}
             {cliente.CNPJ && (
-              <div className="flex items-center text-sm text-gray-600">
-                <FileText className="w-4 h-4 mr-2 text-blue-500" />
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                <FileText className="w-4 h-4 text-blue-500" />
                 <span className="font-medium">CNPJ:</span>
-                <span className="ml-1 font-mono">{cliente.CNPJ}</span>
+                <span className="font-mono">{cliente.CNPJ}</span>
+                <CopyButton
+                  text={formatarParaCopiar.cnpj(cliente.CNPJ)}
+                  successMessage="CNPJ copiado!"
+                  iconSize={14}
+                />
               </div>
             )}
             
             {/* Cidade/Estado - sempre visível se existir */}
             {cliente['Município'] && (
-  <div className="flex items-center text-sm text-gray-600">
+  <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
     <MapPin className="w-4 h-4 mr-2 text-green-500" />
     <span className="font-medium">Local:</span>
     <span className="ml-1">{cliente['Município']} - {cliente['Sigla Estado'] || 'SP'}</span>
@@ -540,16 +559,21 @@ function ClienteCard({ cliente, onVerVendas }: {
             
             {/* Telefone */}
             {cliente.Telefone && (
-              <div className="flex items-center text-sm text-gray-600">
-                <Phone className="w-4 h-4 mr-2 text-purple-500" />
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                <Phone className="w-4 h-4 text-purple-500" />
                 <span className="font-medium">Tel:</span>
-                <span className="ml-1">{cliente.Telefone}</span>
+                <span>{cliente.Telefone}</span>
+                <CopyButton
+                  text={formatarParaCopiar.telefone(cliente.Telefone)}
+                  successMessage="Telefone copiado!"
+                  iconSize={14}
+                />
               </div>
             )}
 
             {/* Inscrição Estadual */}
             {cliente.InscrEst && (
-              <div className="flex items-center text-sm text-gray-600">
+              <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
                 <FileText className="w-4 h-4 mr-2 text-orange-500" />
                 <span className="font-medium">IE:</span>
                 <span className="ml-1 font-mono">{cliente.InscrEst}</span>
@@ -560,9 +584,14 @@ function ClienteCard({ cliente, onVerVendas }: {
           {/* Endereço completo se disponível */}
           {cliente.endereco && (
             <div className="mt-3 pt-3 border-t border-gray-100">
-              <div className="flex items-start text-sm text-gray-600">
-                <MapPin className="w-4 h-4 mr-2 mt-0.5 text-gray-400" />
-                <span className="text-xs">{cliente.endereco}</span>
+              <div className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
+                <MapPin className="w-4 h-4 mt-0.5 text-gray-600 dark:text-gray-300" />
+                <span className="text-xs flex-1">{cliente.endereco}</span>
+                <CopyButton
+                  text={formatarParaCopiar.endereco(cliente)}
+                  successMessage="Endereço completo copiado!"
+                  iconSize={14}
+                />
               </div>
             </div>
           )}
@@ -571,7 +600,7 @@ function ClienteCard({ cliente, onVerVendas }: {
           <div className="mt-4 pt-3 border-t border-gray-100">
             <button
               onClick={() => onVerVendas(cliente)}
-              className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-medium hover:bg-blue-50 px-3 py-2 rounded-md transition-colors"
+              className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 text-sm font-medium hover:bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-md transition-colors"
             >
               <TrendingUp className="w-4 h-4" />
               Ver Vendas e Métricas
@@ -581,11 +610,11 @@ function ClienteCard({ cliente, onVerVendas }: {
         
         {/* Badge da entidade e CEP */}
         <div className="flex flex-col items-end gap-2">
-          <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
+          <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full text-sm font-medium">
             ID: {cliente.Entidade || cliente.id}
           </div>
           {cliente.CEP && (
-            <div className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-mono">
+            <div className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-2 py-1 rounded text-xs font-mono">
               {cliente.CEP}
             </div>
           )}
@@ -642,8 +671,8 @@ export default function ClientesPage() {
   if (error) {
     return (
       <div className="space-y-6">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-          <p className="text-red-600 font-medium">❌ {error}</p>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-xl p-6 text-center">
+          <p className="text-red-600 dark:text-red-400 font-medium">❌ {error}</p>
           <button 
             onClick={() => window.location.reload()} 
             className="mt-2 text-red-700 underline"
@@ -660,28 +689,28 @@ export default function ClientesPage() {
       {/* Header da página */}
 <div className="flex items-start justify-between">
   <div>
-    <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
-    <p className="text-gray-600 mt-1">Gerencie os clientes da Almeida&Camargo</p>
+    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Clientes</h1>
+    <p className="text-gray-600 dark:text-gray-300 mt-1">Gerencie os clientes da Almeida&Camargo</p>
   </div>
   
   {/* Botão de duplicatas - só aparece para admin */}
   {user && (
     <div className="group">
-      <BotaoDuplicatas user={user} />
+      {user.role !== 'observador' && <BotaoDuplicatas user={user as { role: 'admin_financeiro' | 'consultor_vendas'; nome: string }} />}
     </div>
   )}
 </div>
 
       {/* Filtro de vendedor ativo */}
       {vendedorFiltro && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-3">
-          <Building2 className="h-5 w-5 text-blue-600" />
-          <span className="text-sm text-blue-700">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg p-3 flex items-center gap-3">
+          <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <span className="text-sm text-blue-700 dark:text-blue-300">
             Mostrando apenas clientes de: <strong>{vendedorFiltro}</strong>
           </span>
           <button
             onClick={() => navigate('/clientes')}
-            className="ml-auto text-blue-600 hover:text-blue-800"
+            className="ml-auto text-blue-600 dark:text-blue-400 hover:text-blue-800"
           >
             <X className="h-5 w-5" />
           </button>
@@ -713,43 +742,43 @@ export default function ClientesPage() {
       </div>
 
       {/* Barra de busca e filtros */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 border border-gray-100">
         {/* Busca principal */}
         <div className="p-4 border-b border-gray-100">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 dark:text-gray-300 w-5 h-5" />
             <input
               type="text"
               placeholder="Buscar por nome, cidade ou CNPJ..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
         </div>
 
         {/* Filtros avançados */}
-        <div className="p-4 bg-gray-50">
+        <div className="p-4 bg-gray-50 dark:bg-gray-900">
           <div className="flex items-center gap-4 flex-wrap">
             {/* Filtro por cidade */}
             <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-gray-500" />
+              <MapPin className="w-4 h-4 text-gray-600 dark:text-gray-300" />
               <input
                 type="text"
                 placeholder="Filtrar por cidade..."
                 value={cityFilter}
                 onChange={(e) => setCityFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
 
             {/* Filtro por estado */}
             <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-gray-500" />
+              <Filter className="w-4 h-4 text-gray-600 dark:text-gray-300" />
               <select
                 value={stateFilter}
                 onChange={(e) => setStateFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Todos os estados</option>
                 <option value="SP">São Paulo</option>
@@ -769,7 +798,7 @@ export default function ClientesPage() {
             {(searchTerm || cityFilter || stateFilter) && (
               <button
                 onClick={clearFilters}
-                className="flex items-center gap-1 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                className="flex items-center gap-1 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:bg-red-900/20 rounded-md transition-colors"
               >
                 <RotateCcw className="w-4 h-4" />
                 Limpar filtros
@@ -778,11 +807,11 @@ export default function ClientesPage() {
 
             {/* Selector de itens por página */}
             <div className="flex items-center gap-2 ml-auto">
-              <span className="text-sm text-gray-600">Por página:</span>
+              <span className="text-sm text-gray-600 dark:text-gray-300">Por página:</span>
               <select
                 value={itemsPerPage}
                 onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                className="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value={10}>10</option>
                 <option value={20}>20</option>
@@ -800,12 +829,12 @@ export default function ClientesPage() {
           // Loading skeleton
           <div className="space-y-4">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-white rounded-lg border border-gray-200 p-6 animate-pulse">
-                <div className="h-6 bg-gray-200 rounded w-1/3 mb-3"></div>
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 animate-pulse">
+                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-3"></div>
                 <div className="space-y-2">
-                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
                 </div>
               </div>
             ))}
@@ -823,12 +852,12 @@ export default function ClientesPage() {
           </div>
         ) : (
           // Estado vazio
-          <div className="bg-gray-50 rounded-xl p-12 text-center">
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-12 text-center">
             <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
               {searchTerm || cityFilter || stateFilter ? 'Nenhum cliente encontrado' : 'Carregando clientes...'}
             </h3>
-            <p className="text-gray-500">
+            <p className="text-gray-600 dark:text-gray-300">
               {searchTerm || cityFilter || stateFilter
                 ? 'Tente uma busca diferente ou limpe os filtros'
                 : 'Os dados estão sendo carregados do banco'
@@ -840,10 +869,10 @@ export default function ClientesPage() {
 
       {/* Controles de paginação */}
       {!loading && clientes.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-4 border border-gray-100">
           <div className="flex items-center justify-between flex-wrap gap-4">
             {/* Informações da paginação */}
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-600 dark:text-gray-300">
               Mostrando <span className="font-medium">{((currentPage - 1) * itemsPerPage) + 1}</span> até{' '}
               <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalClientes)}</span> de{' '}
               <span className="font-medium">{totalClientes.toLocaleString('pt-BR')}</span> clientes
@@ -855,7 +884,7 @@ export default function ClientesPage() {
               <button
                 onClick={() => setCurrentPage((prev: number) => Math.max(prev - 1, 1))}
                 disabled={currentPage <= 1}
-                className="flex items-center gap-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="w-4 h-4" />
                 Anterior
@@ -867,11 +896,11 @@ export default function ClientesPage() {
                   <>
                     <button
                       onClick={() => setCurrentPage(1)}
-                      className="px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
+                      className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900"
                     >
                       1
                     </button>
-                    {currentPage > 3 && <span className="px-2 text-gray-500">...</span>}
+                    {currentPage > 3 && <span className="px-2 text-gray-600 dark:text-gray-300">...</span>}
                   </>
                 )}
 
@@ -882,11 +911,7 @@ export default function ClientesPage() {
                       <button
                         key={pageNum}
                         onClick={() => setCurrentPage(pageNum)}
-                        className={`px-3 py-2 text-sm border rounded-md ${
-                          pageNum === currentPage
-                            ? 'bg-blue-500 text-white border-blue-500'
-                            : 'border-gray-300 hover:bg-gray-50'
-                        }`}
+                        className={`px-3 py-2 text-sm border rounded-md ${ pageNum === currentPage ? 'bg-blue-500 text-white border-blue-500' : 'border-gray-300 hover:bg-gray-50' }`}
                       >
                         {pageNum}
                       </button>
@@ -897,10 +922,10 @@ export default function ClientesPage() {
 
                 {currentPage < totalPages - 1 && (
                   <>
-                    {currentPage < totalPages - 2 && <span className="px-2 text-gray-500">...</span>}
+                    {currentPage < totalPages - 2 && <span className="px-2 text-gray-600 dark:text-gray-300">...</span>}
                     <button
                       onClick={() => setCurrentPage(totalPages)}
-                      className="px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
+                      className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900"
                     >
                       {totalPages}
                     </button>
@@ -912,7 +937,7 @@ export default function ClientesPage() {
               <button
                 onClick={() => setCurrentPage((prev: number) => Math.min(prev + 1, totalPages))}
                 disabled={currentPage >= totalPages}
-                className="flex items-center gap-1 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Próxima
                 <ChevronRight className="w-4 h-4" />

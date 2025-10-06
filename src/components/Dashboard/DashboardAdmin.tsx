@@ -8,9 +8,10 @@ import {
   PieChart, Pie, Cell
 } from 'recharts'
   
-import { 
-  TrendingUp, DollarSign, ShoppingCart, Users, Calendar, 
-  MapPin, Package, AlertCircle 
+import {
+  TrendingUp, DollarSign, ShoppingCart, Users, Calendar,
+  Package, AlertCircle, Zap, BarChart3, ShoppingBag,
+  FileText, AlertTriangle, Settings, Upload
 } from 'lucide-react'
 
 // Interfaces para tipagem dos dados
@@ -31,7 +32,9 @@ interface VendaRecente {
   'Descr. Produto': string
   NomeCli: string
   CIDADE: string
+  MARCA: string
   cdCli: number
+  cdRepr: number
   Quantidade: string
   'Preço Unitário': string
 }
@@ -43,16 +46,9 @@ interface FaturamentoMensal {
   crescimento?: number
 }
 
-interface TopProduto {
-  produto: string
+interface TopMarca {
+  marca: string
   quantidade: number
-  faturamento: number
-  percentual: number
-}
-
-interface VendaPorCidade {
-  cidade: string
-  vendas: number
   faturamento: number
   percentual: number
 }
@@ -84,8 +80,7 @@ export default function DashboardAdmin() {
 
   const [vendasRecentes, setVendasRecentes] = useState<VendaRecente[]>([])
   const [faturamentoMensal, setFaturamentoMensal] = useState<FaturamentoMensal[]>([])
-  const [topProdutos, setTopProdutos] = useState<TopProduto[]>([])
-  const [vendasPorCidade, setVendasPorCidade] = useState<VendaPorCidade[]>([])
+  const [topMarcas, setTopMarcas] = useState<TopMarca[]>([])
   const [metricas, setMetricas] = useState<MetricasPerformance>({
     vendasHoje: 0,
     vendasSemana: 0,
@@ -142,8 +137,8 @@ export default function DashboardAdmin() {
   const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium text-gray-900">{label}</p>
+        <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-gray-900/50">
+          <p className="font-medium text-gray-900 dark:text-white">{label}</p>
           {payload.map((entry: TooltipPayload, index: number) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
               {entry.name}: {
@@ -153,28 +148,6 @@ export default function DashboardAdmin() {
               }
             </p>
           ))}
-        </div>
-      )
-    }
-    return null
-  }
-
-  interface PiePayload {
-    payload: TopProduto
-  }
-
-  const PieTooltip = ({ active, payload }: { active?: boolean; payload?: PiePayload[] }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload
-      return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium text-gray-900">{data.produto}</p>
-          <p className="text-sm text-blue-600">
-            Faturamento: {formatarMoeda(data.faturamento)}
-          </p>
-          <p className="text-sm text-green-600">
-            Participação: {data.percentual.toFixed(1)}%
-          </p>
         </div>
       )
     }
@@ -200,6 +173,7 @@ export default function DashboardAdmin() {
             "Descr. Produto",
             NomeCli,
             CIDADE,
+            MARCA,
             cdCli,
             cdRepr,
             Quantidade,
@@ -336,85 +310,45 @@ export default function DashboardAdmin() {
 
           setFaturamentoMensal(faturamentoMensalArray)
 
-          // Top produtos
-          const produtosMap = new Map<string, { quantidade: number, faturamento: number }>()
-          
+          // Top marcas
+          const marcasMap = new Map<string, { quantidade: number, faturamento: number }>()
+
           vendas.forEach(venda => {
-            const produto = (venda['Descr. Produto'] || 'Produto não identificado')
-              .substring(0, 40)
+            const marca = venda.MARCA || 'Marca não identificada'
             const quantidade = parseFloat(venda.Quantidade?.replace(',', '.') || '0')
             const faturamento = calcularTotalVenda(
               venda.total,
               venda.Quantidade,
               venda['Preço Unitário']
             )
-            
-            if (produtosMap.has(produto)) {
-              const atual = produtosMap.get(produto)!
-              produtosMap.set(produto, {
+
+            if (marcasMap.has(marca)) {
+              const atual = marcasMap.get(marca)!
+              marcasMap.set(marca, {
                 quantidade: atual.quantidade + quantidade,
                 faturamento: atual.faturamento + faturamento
               })
             } else {
-              produtosMap.set(produto, { quantidade, faturamento })
+              marcasMap.set(marca, { quantidade, faturamento })
             }
           })
 
-          const faturamentoTotalProdutos = Array.from(produtosMap.values())
-            .reduce((acc, p) => acc + p.faturamento, 0)
+          const faturamentoTotalMarcas = Array.from(marcasMap.values())
+            .reduce((acc, m) => acc + m.faturamento, 0)
 
-          const topProdutosList = Array.from(produtosMap.entries())
-            .map(([produto, dados]) => ({
-              produto,
+          const topMarcasList = Array.from(marcasMap.entries())
+            .map(([marca, dados]) => ({
+              marca,
               quantidade: dados.quantidade,
               faturamento: dados.faturamento,
-              percentual: faturamentoTotalProdutos > 0 
-                ? (dados.faturamento / faturamentoTotalProdutos) * 100 
+              percentual: faturamentoTotalMarcas > 0
+                ? (dados.faturamento / faturamentoTotalMarcas) * 100
                 : 0
             }))
             .sort((a, b) => b.faturamento - a.faturamento)
             .slice(0, 6)
 
-          setTopProdutos(topProdutosList)
-
-          // Vendas por cidade
-          const cidadesMap = new Map<string, { vendas: number, faturamento: number }>()
-          
-          vendas.forEach(venda => {
-            const cidade = venda.CIDADE || 'Não identificada'
-            const faturamento = calcularTotalVenda(
-              venda.total,
-              venda.Quantidade,
-              venda['Preço Unitário']
-            )
-            
-            if (cidadesMap.has(cidade)) {
-              const atual = cidadesMap.get(cidade)!
-              cidadesMap.set(cidade, {
-                vendas: atual.vendas + 1,
-                faturamento: atual.faturamento + faturamento
-              })
-            } else {
-              cidadesMap.set(cidade, { vendas: 1, faturamento })
-            }
-          })
-
-          const faturamentoTotalCidades = Array.from(cidadesMap.values())
-            .reduce((acc, c) => acc + c.faturamento, 0)
-
-          const cidadesArray = Array.from(cidadesMap.entries())
-            .map(([cidade, dados]) => ({
-              cidade,
-              vendas: dados.vendas,
-              faturamento: dados.faturamento,
-              percentual: faturamentoTotalCidades > 0 
-                ? (dados.faturamento / faturamentoTotalCidades) * 100 
-                : 0
-            }))
-            .sort((a, b) => b.faturamento - a.faturamento)
-            .slice(0, 8)
-
-          setVendasPorCidade(cidadesArray)
+          setTopMarcas(topMarcasList)
 
           // Métricas de performance
           const hoje_str = hoje.toLocaleDateString('pt-BR')
@@ -459,18 +393,18 @@ export default function DashboardAdmin() {
   if (authLoading || loading) {
     return (
       <div className="animate-pulse space-y-6">
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="h-6 bg-gray-200 rounded w-1/4 mb-2"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6">
+          <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-2"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="bg-gray-200 h-32 rounded-xl"></div>
+            <div key={i} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-xl"></div>
           ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-gray-200 h-80 rounded-xl"></div>
-          <div className="bg-gray-200 h-80 rounded-xl"></div>
+          <div className="bg-gray-200 dark:bg-gray-700 h-80 rounded-xl"></div>
+          <div className="bg-gray-200 dark:bg-gray-700 h-80 rounded-xl"></div>
         </div>
       </div>
     )
@@ -478,7 +412,7 @@ export default function DashboardAdmin() {
 
   if (authError || error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-xl p-6">
         <div className="flex items-center mb-4">
           <AlertCircle className="h-6 w-6 text-red-400 mr-3" />
           <h3 className="text-lg font-medium text-red-800">Erro ao carregar dashboard</h3>
@@ -495,382 +429,293 @@ export default function DashboardAdmin() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl shadow-lg text-white p-8">
-        <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      {/* Header com Saudação */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg dark:shadow-gray-900/50 p-6 text-white">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Dashboard Financeiro</h1>
-            <p className="text-blue-100 mt-2">
-              {user?.role === 'admin_financeiro' 
-                ? 'Visão geral de toda a operação comercial'
-                : `Suas vendas - ${user?.nome}`
-              }
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+              Olá, {user?.nome?.split(' ')[0]}!
+            </h1>
+            <p className="text-blue-100">
+              Visão geral da operação comercial
             </p>
           </div>
           <div className="text-right">
             <p className="text-blue-100 text-sm">Última atualização</p>
-            <p className="text-white font-medium">{new Date().toLocaleString('pt-BR')}</p>
+            <p className="font-medium">{new Date().toLocaleString('pt-BR')}</p>
           </div>
         </div>
       </div>
 
-      {/* KPIs Principais */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total de Vendas</p>
-              <p className="text-3xl font-bold text-gray-900">{kpis.totalVendas.toLocaleString('pt-BR')}</p>
-              <p className="text-xs text-blue-600 mt-1">↗ Últimos registros</p>
-            </div>
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <ShoppingCart className="h-8 w-8 text-blue-600" />
+      {/* KPIs Principais - Grid Responsivo */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+
+        {/* Total de Vendas */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6 border-l-4 border-blue-500 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <ShoppingCart className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Total de Vendas</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{kpis.totalVendas.toLocaleString('pt-BR')}</p>
+          <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">Últimos registros</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Faturamento Total</p>
-              <p className="text-3xl font-bold text-gray-900">{formatarMoeda(kpis.faturamentoTotal)}</p>
-              <p className="text-xs text-green-600 mt-1">
-                {kpis.crescimentoMensal >= 0 ? '↗' : '↘'} 
-                {Math.abs(kpis.crescimentoMensal).toFixed(1)}% vs mês anterior
-              </p>
-            </div>
-            <div className="p-3 bg-green-100 rounded-xl">
-              <DollarSign className="h-8 w-8 text-green-600" />
+        {/* Faturamento Total */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6 border-l-4 border-green-500 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+              <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
           </div>
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Faturamento Total</p>
+          <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white break-words">
+            {formatarMoeda(kpis.faturamentoTotal)}
+          </p>
+          <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+            {kpis.crescimentoMensal >= 0 ? '↗' : '↘'}
+            {Math.abs(kpis.crescimentoMensal).toFixed(1)}% vs mês anterior
+          </p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-purple-500 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Ticket Médio</p>
-              <p className="text-3xl font-bold text-gray-900">{formatarMoeda(kpis.ticketMedio)}</p>
-              <p className="text-xs text-purple-600 mt-1">📊 Valor médio por venda</p>
-            </div>
-            <div className="p-3 bg-purple-100 rounded-xl">
-              <TrendingUp className="h-8 w-8 text-purple-600" />
+        {/* Ticket Médio */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6 border-l-4 border-purple-500 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-purple-100 rounded-lg">
+              <TrendingUp className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Ticket Médio</p>
+          <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white break-words">
+            {formatarMoeda(kpis.ticketMedio)}
+          </p>
+          <p className="text-xs text-purple-600 dark:text-purple-400 mt-2">Valor médio por venda</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-orange-500 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Clientes Únicos</p>
-              <p className="text-3xl font-bold text-gray-900">{kpis.clientesUnicos.toLocaleString('pt-BR')}</p>
-              <p className="text-xs text-orange-600 mt-1">👥 Base de clientes ativa</p>
-            </div>
-            <div className="p-3 bg-orange-100 rounded-xl">
-              <Users className="h-8 w-8 text-orange-600" />
+        {/* Clientes Únicos */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6 border-l-4 border-orange-500 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-orange-100 rounded-lg">
+              <Users className="h-6 w-6 text-orange-600 dark:text-orange-400" />
             </div>
           </div>
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Clientes Únicos</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{kpis.clientesUnicos.toLocaleString('pt-BR')}</p>
+          <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">Base de clientes ativa</p>
         </div>
+
       </div>
 
-      {/* Métricas de Performance */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance do Período</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-blue-50 rounded-lg">
-            <p className="text-2xl font-bold text-blue-600">{metricas.vendasHoje}</p>
-            <p className="text-sm text-gray-600">Vendas Hoje</p>
-          </div>
-          <div className="text-center p-4 bg-green-50 rounded-lg">
-            <p className="text-2xl font-bold text-green-600">{metricas.vendasSemana}</p>
-            <p className="text-sm text-gray-600">Últimos 7 dias</p>
-          </div>
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
-            <p className="text-2xl font-bold text-purple-600">{metricas.vendasMes}</p>
-            <p className="text-sm text-gray-600">Vendas este mês</p>
-          </div>
-          <div className="text-center p-4 bg-orange-50 rounded-lg">
-            <p className="text-2xl font-bold text-orange-600">{metricas.percentualMeta.toFixed(1)}%</p>
-            <p className="text-sm text-gray-600">Meta mensal</p>
-          </div>
-        </div>
-      </div>
+      {/* Atalhos Rápidos */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <Zap className="h-5 w-5 text-yellow-600" />
+          Ações Rápidas
+        </h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
 
-      {/* Gráficos Principal */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-        {/* Faturamento Mensal */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Evolução Mensal</h3>
-            <Calendar className="h-5 w-5 text-gray-400" />
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={faturamentoMensal}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="mes" />
-              <YAxis tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}K`} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend />
-              <Bar dataKey="faturamento" fill="#3B82F6" name="Faturamento" />
-              <Bar dataKey="vendas" fill="#10B981" name="Qtd Vendas" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Top Produtos */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Top Produtos</h3>
-            <Package className="h-5 w-5 text-gray-400" />
-          </div>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={topProdutos}
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="faturamento"
-                nameKey="produto"
-                labelLine={false}
-                label={false}
-              >
-                {topProdutos.map((_entry, index) => (
-                  <Cell key={`cell-${index}`} fill={CORES_GRAFICOS[index % CORES_GRAFICOS.length]} />
-                ))}
-              </Pie>
-              <Tooltip content={<PieTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-          
-          {/* Legenda customizada */}
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            {topProdutos.map((produto, index) => (
-              <div key={index} className="flex items-center text-xs">
-                <div 
-                  className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
-                  style={{ backgroundColor: CORES_GRAFICOS[index % CORES_GRAFICOS.length] }}
-                ></div>
-                <span className="truncate" title={produto.produto}>
-                  {produto.produto} ({produto.percentual.toFixed(1)}%)
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Segunda linha de gráficos */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Vendas por Cidade */}
-        <div className="xl:col-span-2 bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Vendas por Região</h3>
-            <MapPin className="h-5 w-5 text-gray-400" />
-          </div>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={vendasPorCidade} layout="horizontal">
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}K`} />
-              <YAxis dataKey="cidade" type="category" width={100} />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="faturamento" fill="#F59E0B" name="Faturamento" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Vendas Recentes */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Vendas Recentes</h3>
-          <div className="space-y-3 max-h-64 overflow-y-auto">
-            {vendasRecentes.map((venda) => (
-              <div key={venda.id} className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {venda.NomeCli}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {venda['Descr. Produto']}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {venda['Data de Emissao da NF']} • NF: {venda['Número da Nota Fiscal']}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-green-600">
-                      {formatarMoeda(calcularTotalVenda(
-                        venda.total,
-                        venda.Quantidade,
-                        venda['Preço Unitário']
-                      ))}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Resumo detalhado do mês atual */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900">Resumo do Mês Atual</h3>
-          <TrendingUp className="h-5 w-5 text-gray-400" />
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-100 text-sm">Faturamento Mês</p>
-                <p className="text-2xl font-bold">{formatarMoeda(kpis.faturamentoMesAtual)}</p>
-              </div>
-              <DollarSign className="h-8 w-8 text-blue-200" />
-            </div>
-            <div className="mt-4 pt-4 border-t border-blue-400">
-              <p className="text-xs text-blue-100">
-                {kpis.crescimentoMensal >= 0 ? '↗ Crescimento' : '↘ Queda'} de{' '}
-                <span className="font-semibold">{Math.abs(kpis.crescimentoMensal).toFixed(1)}%</span>
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-green-100 text-sm">Vendas do Mês</p>
-                <p className="text-2xl font-bold">{metricas.vendasMes}</p>
-              </div>
-              <ShoppingCart className="h-8 w-8 text-green-200" />
-            </div>
-            <div className="mt-4 pt-4 border-t border-green-400">
-              <p className="text-xs text-green-100">
-                Meta: {metricas.metaMensal} vendas
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-6 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-purple-100 text-sm">% da Meta</p>
-                <p className="text-2xl font-bold">{metricas.percentualMeta.toFixed(1)}%</p>
-              </div>
-              <Calendar className="h-8 w-8 text-purple-200" />
-            </div>
-            <div className="mt-4 pt-4 border-t border-purple-400">
-              <div className="w-full bg-purple-400 rounded-full h-2">
-                <div 
-                  className="bg-white rounded-full h-2 transition-all duration-300"
-                  style={{ width: `${Math.min(metricas.percentualMeta, 100)}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Insights e Alertas */}
-      {user?.role === 'admin_financeiro' && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Insights e Alertas</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {vendasPorCidade.length > 0 && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-start">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <TrendingUp className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-green-900">Melhor Região</p>
-                    <p className="text-xs text-green-700">
-                      {vendasPorCidade[0]?.cidade} lidera com {formatarMoeda(vendasPorCidade[0]?.faturamento || 0)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {topProdutos.length > 0 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-start">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Package className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-blue-900">Produto Destaque</p>
-                    <p className="text-xs text-blue-700">
-                      {topProdutos[0]?.percentual.toFixed(1)}% do faturamento
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className={`border rounded-lg p-4 ${
-              metricas.percentualMeta >= 80 
-                ? 'bg-green-50 border-green-200' 
-                : 'bg-yellow-50 border-yellow-200'
-            }`}>
-              <div className="flex items-start">
-                <div className={`p-2 rounded-lg ${
-                  metricas.percentualMeta >= 80 
-                    ? 'bg-green-100' 
-                    : 'bg-yellow-100'
-                }`}>
-                  <Calendar className={`h-4 w-4 ${
-                    metricas.percentualMeta >= 80 
-                      ? 'text-green-600' 
-                      : 'text-yellow-600'
-                  }`} />
-                </div>
-                <div className="ml-3">
-                  <p className={`text-sm font-medium ${
-                    metricas.percentualMeta >= 80 
-                      ? 'text-green-900' 
-                      : 'text-yellow-900'
-                  }`}>
-                    {metricas.percentualMeta >= 80 ? 'Meta no Caminho' : 'Atenção: Meta'}
-                  </p>
-                  <p className={`text-xs ${
-                    metricas.percentualMeta >= 80 
-                      ? 'text-green-700' 
-                      : 'text-yellow-700'
-                  }`}>
-                    {metricas.percentualMeta >= 80 
-                      ? 'Excelente performance!' 
-                      : 'Precisamos acelerar'
-                    }
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Footer */}
-      <div className="bg-gray-50 rounded-xl p-6">
-        <div className="flex flex-col md:flex-row justify-between items-center text-sm text-gray-600">
-          <div className="flex items-center space-x-4 mb-4 md:mb-0">
-            <span>Sistema Almeida&Camargo</span>
-            <span>•</span>
-            <span>Dados atualizados em tempo real</span>
-            <span>•</span>
-            <span>
-              {user?.role === 'admin_financeiro' 
-                ? 'Acesso total aos dados' 
-                : 'Dados filtrados por representante'
-              }
+          <button
+            onClick={() => window.location.href = '/relatorios'}
+            className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
+          >
+            <BarChart3 className="h-6 w-6 text-gray-600 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-200 group-hover:text-blue-700 dark:group-hover:text-blue-300 text-center">
+              Novo Relatório
             </span>
+          </button>
+
+          <button
+            onClick={() => window.location.href = '/clientes'}
+            className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all group"
+          >
+            <Users className="h-6 w-6 text-gray-600 dark:text-gray-300 group-hover:text-green-600 dark:group-hover:text-green-400" />
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-200 group-hover:text-green-700 dark:group-hover:text-green-300 text-center">
+              Ver Clientes
+            </span>
+          </button>
+
+          <button
+            onClick={() => window.location.href = '/vendas'}
+            className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all group"
+          >
+            <ShoppingBag className="h-6 w-6 text-gray-600 dark:text-gray-300 group-hover:text-purple-600 dark:group-hover:text-purple-400" />
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-200 group-hover:text-purple-700 dark:group-hover:text-purple-300 text-center">
+              Ver Vendas
+            </span>
+          </button>
+
+          <button
+            onClick={() => window.location.href = '/templates'}
+            className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-yellow-500 hover:bg-yellow-50 transition-all group"
+          >
+            <FileText className="h-6 w-6 text-gray-600 dark:text-gray-300 group-hover:text-yellow-600" />
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-200 group-hover:text-yellow-700 text-center">
+              Templates
+            </span>
+          </button>
+
+          <button
+            onClick={() => window.location.href = '/admin/duplicatas'}
+            className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all group"
+          >
+            <AlertTriangle className="h-6 w-6 text-gray-600 dark:text-gray-300 group-hover:text-red-600 dark:group-hover:text-red-400" />
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-200 group-hover:text-red-700 dark:group-hover:text-red-300 text-center">
+              Duplicatas
+            </span>
+          </button>
+
+          <button
+            onClick={() => window.location.href = '/gestao-usuarios'}
+            className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-indigo-500 hover:bg-indigo-50 transition-all group"
+          >
+            <Settings className="h-6 w-6 text-gray-600 dark:text-gray-300 group-hover:text-indigo-600" />
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-200 group-hover:text-indigo-700 text-center">
+              Usuários
+            </span>
+          </button>
+
+          <button
+            onClick={() => window.location.href = '/importacao'}
+            className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-cyan-500 hover:bg-cyan-50 transition-all group"
+          >
+            <Upload className="h-6 w-6 text-gray-600 dark:text-gray-300 group-hover:text-cyan-600" />
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-200 group-hover:text-cyan-700 text-center">
+              Importar CSV
+            </span>
+          </button>
+
+        </div>
+      </div>
+
+      {/* Métricas de Performance do Período */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Performance do Período</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{metricas.vendasHoje}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">Vendas Hoje</p>
           </div>
-          <div className="text-xs">
-            Última sincronização: {new Date().toLocaleTimeString('pt-BR')}
+          <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{metricas.vendasSemana}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">Últimos 7 dias</p>
+          </div>
+          <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+            <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{metricas.vendasMes}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">Vendas este mês</p>
+          </div>
+          <div className="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+            <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{metricas.percentualMeta.toFixed(1)}%</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">Meta mensal</p>
           </div>
         </div>
+      </div>
+
+      {/* Gráficos - Grid Responsivo */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+        {/* Evolução Mensal */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Evolução Mensal</h3>
+            <Calendar className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+          </div>
+          <div style={{ width: '100%', height: 300 }}>
+            <ResponsiveContainer>
+              <BarChart data={faturamentoMensal}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
+                <YAxis tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}K`} tick={{ fontSize: 12 }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="faturamento" fill="#3b82f6" radius={[8, 8, 0, 0]} name="Faturamento" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Top 5 Marcas */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Top 5 Marcas</h3>
+            <Package className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+          </div>
+          <div style={{ width: '100%', height: 300 }}>
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie
+                  data={topMarcas.slice(0, 5)}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={false}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="faturamento"
+                  nameKey="marca"
+                >
+                  {topMarcas.slice(0, 5).map((_marca, index) => (
+                    <Cell key={`cell-${index}`} fill={CORES_GRAFICOS[index % CORES_GRAFICOS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number) => formatarMoeda(value)}
+                />
+                <Legend
+                  formatter={(value: string) => {
+                    const marca = topMarcas.slice(0, 5).find(m => m.marca === value);
+                    if (!marca) return value;
+                    return `${value} (${marca.percentual.toFixed(1)}%)`;
+                  }}
+                  wrapperStyle={{ fontSize: '12px' }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Vendas Recentes */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Vendas Recentes</h3>
+          <button
+            type="button"
+            onClick={() => window.location.href = '/vendas'}
+            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 font-medium"
+          >
+            Ver todas →
+          </button>
+        </div>
+        <div className="space-y-3">
+          {vendasRecentes.slice(0, 6).map((venda) => (
+            <div key={venda.id} className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-300 hover:bg-blue-50 dark:bg-blue-900/20 transition-all">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  {venda['Descr. Produto']}
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-300">
+                  {venda.NomeCli} • {venda['Data de Emissao da NF']}
+                </p>
+              </div>
+              <div className="ml-4 flex-shrink-0 text-right">
+                <p className="text-sm font-bold text-green-600 dark:text-green-400">
+                  {formatarMoeda(calcularTotalVenda(
+                    venda.total,
+                    venda.Quantidade,
+                    venda['Preço Unitário']
+                  ))}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer com Informações */}
+      <div className="text-center text-sm text-gray-600 dark:text-gray-300 py-4">
+        <p>Sistema Financeiro Almeida&Camargo • Última sincronização: {new Date().toLocaleString('pt-BR')}</p>
       </div>
     </div>
   )

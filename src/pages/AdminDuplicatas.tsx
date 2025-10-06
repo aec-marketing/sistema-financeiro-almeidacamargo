@@ -68,8 +68,8 @@ export default function AdminDuplicatas() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Acesso Negado</h2>
-          <p className="text-gray-600">Esta funcionalidade é restrita a administradores.</p>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Acesso Negado</h2>
+          <p className="text-gray-600 dark:text-gray-300">Esta funcionalidade é restrita a administradores.</p>
         </div>
       </div>
     )
@@ -158,17 +158,17 @@ export default function AdminDuplicatas() {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-gray-900/50 max-w-4xl w-full max-h-[90vh] overflow-hidden">
           <div className="flex items-center justify-between p-6 border-b">
             <div>
               <h2 className="text-xl font-bold">Detalhes do Grupo de Duplicatas</h2>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
                 Confiança: {grupoSelecionado.confianca}% | Critério: {grupoSelecionado.criterio}
               </p>
             </div>
             <button
               onClick={() => setModalAberto(false)}
-              className="p-2 hover:bg-gray-100 rounded-lg"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800 rounded-lg"
             >
               <XCircle className="w-5 h-5" />
             </button>
@@ -180,7 +180,7 @@ export default function AdminDuplicatas() {
                 <div key={cliente.id} className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold text-lg">Cliente {index + 1}</h3>
-                    <span className="text-sm text-gray-500">ID: {cliente.id}</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-300">ID: {cliente.id}</span>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4 text-sm">
@@ -233,37 +233,37 @@ export default function AdminDuplicatas() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Gerenciador de Duplicatas</h1>
-        <p className="text-gray-600 mt-1">Detecte e mescle clientes duplicados automaticamente</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gerenciador de Duplicatas</h1>
+        <p className="text-gray-600 dark:text-gray-300 mt-1">Detecte e mescle clientes duplicados automaticamente</p>
       </div>
 
       {/* Cards de Estatísticas */}
       {relatorio && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-blue-50 rounded-lg p-4">
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-600">Grupos Detectados</p>
+                <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Grupos Detectados</p>
                 <p className="text-2xl font-bold text-blue-900">{relatorio.totalGrupos}</p>
               </div>
               <Users className="w-8 h-8 text-blue-500" />
             </div>
           </div>
 
-          <div className="bg-red-50 rounded-lg p-4">
+          <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-600">Total Duplicatas</p>
+                <p className="text-sm font-medium text-red-600 dark:text-red-400">Total Duplicatas</p>
                 <p className="text-2xl font-bold text-red-900">{relatorio.totalDuplicatas}</p>
               </div>
               <AlertTriangle className="w-8 h-8 text-red-500" />
             </div>
           </div>
 
-          <div className="bg-green-50 rounded-lg p-4">
+          <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-600">Alta Confiança</p>
+                <p className="text-sm font-medium text-green-600 dark:text-green-400">Alta Confiança</p>
                 <p className="text-2xl font-bold text-green-900">{relatorio.alta_confianca}</p>
               </div>
               <CheckCircle className="w-8 h-8 text-green-500" />
@@ -289,7 +289,7 @@ export default function AdminDuplicatas() {
         <button
           onClick={carregarDuplicatas}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           {loading ? 'Carregando...' : 'Atualizar'}
@@ -306,7 +306,7 @@ export default function AdminDuplicatas() {
       </div>
 
       {/* Lista de Grupos */}
-      <div className="bg-white rounded-xl shadow-sm border">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 border">
         <div className="p-6 border-b">
           <h2 className="text-lg font-semibold">Grupos de Duplicatas Detectados</h2>
         </div>
@@ -315,35 +315,29 @@ export default function AdminDuplicatas() {
           {grupos.length === 0 ? (
             <div className="p-12 text-center">
               <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">Nenhuma duplicata detectada</p>
+              <p className="text-gray-600 dark:text-gray-300">Nenhuma duplicata detectada</p>
             </div>
           ) : (
             grupos.map((grupo, index) => (
-              <div key={grupo.chave} className="p-4 hover:bg-gray-50">
+              <div key={grupo.chave} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
                         Grupo {index + 1}
                       </span>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        grupo.confianca >= 90 
-                          ? 'bg-green-100 text-green-800'
-                          : grupo.confianca >= 70
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${grupo.confianca >= 90 ? 'bg-green-100 text-green-800' : grupo.confianca >= 70 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
                         {grupo.confianca}% confiança
                       </span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-600 dark:text-gray-300">
                         {grupo.clientes.length} clientes
                       </span>
                     </div>
                     
-                    <p className="text-sm text-gray-600 mb-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">
                       <strong>Primeiro cliente:</strong> {grupo.clientes[0]?.Nome}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-600 dark:text-gray-300">
                       {formatarCriterio(grupo)}
                     </p>
                   </div>
@@ -354,7 +348,7 @@ export default function AdminDuplicatas() {
                         setGrupoSelecionado(grupo)
                         setModalAberto(true)
                       }}
-                      className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-md"
+                      className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:bg-blue-900/20 rounded-md"
                     >
                       <Eye className="w-4 h-4" />
                       Detalhes
@@ -362,7 +356,7 @@ export default function AdminDuplicatas() {
                     
                     <button
                       onClick={() => mesclarGrupoIndividual(grupo)}
-                      className="flex items-center gap-1 px-3 py-1 text-sm text-green-600 hover:bg-green-50 rounded-md"
+                      className="flex items-center gap-1 px-3 py-1 text-sm text-green-600 dark:text-green-400 hover:bg-green-50 dark:bg-green-900/20 rounded-md"
                     >
                       <CheckCircle className="w-4 h-4" />
                       Mesclar

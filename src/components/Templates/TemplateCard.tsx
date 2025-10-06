@@ -73,7 +73,7 @@ export default function TemplateCard({
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow relative">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 hover:shadow-md dark:shadow-gray-900/50 transition-shadow relative">
       {/* Header do card */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1 min-w-0">
@@ -82,12 +82,12 @@ export default function TemplateCard({
               type="text"
               value={nomeEditado}
               onChange={(e) => setNomeEditado(e.target.value)}
-              className="w-full font-semibold text-lg text-gray-900 border-b border-blue-300 focus:outline-none focus:border-blue-500 bg-transparent"
+              className="w-full font-semibold text-lg text-gray-900 dark:text-white border-b border-blue-300 focus:outline-none focus:border-blue-500 bg-transparent"
               maxLength={255}
               autoFocus
             />
           ) : (
-            <h3 className="font-semibold text-lg text-gray-900 truncate">
+            <h3 className="font-semibold text-lg text-gray-900 dark:text-white truncate">
               {template.nome}
             </h3>
           )}
@@ -97,11 +97,7 @@ export default function TemplateCard({
           {/* Botão favorito */}
           <button
             onClick={onAlternarFavorito}
-            className={`p-1 rounded transition-colors ${
-              template.favorito
-                ? 'text-yellow-500 hover:text-yellow-600'
-                : 'text-gray-400 hover:text-yellow-500'
-            }`}
+            className={`p-1 rounded transition-colors ${ template.favorito ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-400 hover:text-yellow-500' }`}
             title={template.favorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
           >
             <Star className={`w-5 h-5 ${template.favorito ? 'fill-current' : ''}`} />
@@ -111,19 +107,19 @@ export default function TemplateCard({
           <div className="relative">
             <button
               onClick={() => setMostrarMenu(!mostrarMenu)}
-              className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors"
+              className="p-1 text-gray-600 dark:text-gray-300 hover:text-gray-600 rounded transition-colors"
             >
               <MoreVertical className="w-5 h-5" />
             </button>
 
             {mostrarMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700 py-1 z-10">
                 <button
                   onClick={() => {
                     setEditando(true);
                     setMostrarMenu(false);
                   }}
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 w-full text-left"
                 >
                   <Edit2 className="w-4 h-4" />
                   Editar
@@ -133,7 +129,7 @@ export default function TemplateCard({
                     onDuplicar();
                     setMostrarMenu(false);
                   }}
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 w-full text-left"
                 >
                   <Copy className="w-4 h-4" />
                   Duplicar
@@ -144,7 +140,7 @@ export default function TemplateCard({
                     confirmarExclusao();
                     setMostrarMenu(false);
                   }}
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:bg-red-900/20 w-full text-left"
                 >
                   <Trash2 className="w-4 h-4" />
                   Excluir
@@ -162,12 +158,12 @@ export default function TemplateCard({
             value={descricaoEditada}
             onChange={(e) => setDescricaoEditada(e.target.value)}
             placeholder="Adicione uma descrição..."
-            className="w-full text-sm text-gray-600 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            className="w-full text-sm text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             rows={2}
             maxLength={500}
           />
         ) : (
-          <p className="text-sm text-gray-600 line-clamp-2">
+          <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
             {template.descricao || 'Sem descrição'}
           </p>
         )}
@@ -177,20 +173,20 @@ export default function TemplateCard({
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-blue-500" />
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-gray-600 dark:text-gray-300">
             {template.filtros.length} filtros
           </span>
         </div>
         <div className="flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-green-500" />
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-gray-600 dark:text-gray-300">
             {template.graficos_config.length} gráficos
           </span>
         </div>
       </div>
 
       {/* Data de criação */}
-      <div className="flex items-center gap-2 mb-4 text-xs text-gray-500">
+      <div className="flex items-center gap-2 mb-4 text-xs text-gray-600 dark:text-gray-300">
         <Calendar className="w-3 h-3" />
         Criado em {formatarData(template.created_at)}
       </div>
@@ -201,14 +197,14 @@ export default function TemplateCard({
           <button
             onClick={salvarEdicao}
             disabled={!nomeEditado.trim()}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:bg-gray-400"
           >
             <Check className="w-4 h-4" />
             Salvar
           </button>
           <button
             onClick={cancelarEdicao}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -217,7 +213,7 @@ export default function TemplateCard({
         <div className="flex gap-2">
           <button
             onClick={onAplicar}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
           >
             <Play className="w-4 h-4" />
             Usar Template

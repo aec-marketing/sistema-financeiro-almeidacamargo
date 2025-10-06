@@ -7,6 +7,7 @@ import { formatarData, formatarMoeda, converterValor } from '../utils/formatters
 import { calcularTotalVenda } from '../utils/calcular-total'
 import { registrarAuditoria } from '../utils/vendas-audit'
 import ModalVenda from '../components/vendas/ModalVenda'
+import CopyButton from '../components/CopyButton'
 import type { Venda } from '../lib/supabase'
 
 const ITENS_POR_PAGINA = 20
@@ -179,8 +180,8 @@ export default function VendasPage() {
       {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Vendas</h1>
-          <p className="text-gray-600">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Vendas</h1>
+          <p className="text-gray-600 dark:text-gray-300">
             {totalVendas.toLocaleString()} venda{totalVendas !== 1 ? 's' : ''} encontrada{totalVendas !== 1 ? 's' : ''}
             {user?.role === 'consultor_vendas' ? ' (suas vendas)' : ''}
           </p>
@@ -190,7 +191,7 @@ export default function VendasPage() {
         {isAdmin && (
           <button
             onClick={abrirModalCriacao}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white font-medium rounded-lg transition-colors shadow-sm dark:shadow-gray-900/50"
           >
             <Plus className="w-4 h-4" />
             Nova Venda
@@ -199,27 +200,27 @@ export default function VendasPage() {
       </div>
 
       {/* Filtros */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Busca por texto */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 dark:text-gray-300 w-4 h-4" />
             <input
               type="text"
               placeholder="Buscar por cliente, produto, representante ou NF..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
           {/* Filtro por cidade */}
           <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 dark:text-gray-300 w-4 h-4" />
             <select
               value={filtroCity}
               onChange={(e) => setFiltroCity(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white dark:bg-gray-800"
             >
               <option value="">Todas as cidades</option>
               {cidades.map(cidade => (
@@ -234,101 +235,234 @@ export default function VendasPage() {
       {loading && (
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="text-gray-600 mt-2">Carregando vendas...</p>
+          <p className="text-gray-600 dark:text-gray-300 mt-2">Carregando vendas...</p>
         </div>
       )}
 
-      {/* Tabela de Vendas */}
+      {/* Tabela de Vendas - MOBILE OPTIMIZED */}
       {!loading && (
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Produto
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Cliente
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Data
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Qtd
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Preço Unit.
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    NF
-                  </th>
-                  {isAdmin && (
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Ações
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 overflow-hidden">
+
+          {vendas.length === 0 ? (
+            <div className="text-center py-12">
+              <svg className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <p className="text-gray-600 dark:text-gray-300 mt-2">
+                {debouncedSearchTerm || filtroCity
+                  ? 'Nenhuma venda encontrada com os filtros aplicados'
+                  : 'Nenhuma venda encontrada'
+                }
+              </p>
+              {isAdmin && !debouncedSearchTerm && !filtroCity && (
+                <button
+                  onClick={abrirModalCriacao}
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white font-medium rounded-lg transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Criar primeira venda
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Versão Desktop - Tabela com indicador de scroll */}
+              <div className="hidden lg:block relative">
+                {/* Indicador de scroll - gradiente no final */}
+                <div className="absolute right-0 top-0 bottom-12 w-12 bg-gradient-to-l from-white to-transparent pointer-events-none z-10" />
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 dark:bg-gray-900">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                          Data
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                          NF
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                          Cliente
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                          Produto
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                          Cidade
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap text-right">
+                          Qtd
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap text-right">
+                          Preço Unit.
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap text-right">
+                          Total
+                        </th>
+                        {isAdmin && (
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
+                            Ações
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200">
+                      {vendas.map((venda) => (
+                        <tr key={venda.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                            {formatarData(venda['Data de Emissao da NF'])}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                            <div className="flex items-center gap-2">
+                              {venda['Número da Nota Fiscal']}
+                              <CopyButton
+                                text={venda['Número da Nota Fiscal']}
+                                successMessage="Número da NF copiado!"
+                                iconSize={12}
+                              />
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                            <div className="max-w-[200px] truncate" title={venda.NomeCli || 'N/A'}>
+                              {venda.NomeCli || 'N/A'}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                            <div className="max-w-[250px]">
+                              <div className="font-medium truncate" title={venda['Cód. Referência']}>
+                                {venda['Cód. Referência'] || 'N/A'}
+                              </div>
+                              <div className="text-gray-600 dark:text-gray-300 text-xs truncate" title={venda['Descr. Produto']}>
+                                {venda['Descr. Produto'] || 'N/A'}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                            {venda.CIDADE}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right">
+                            {venda.Quantidade}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right">
+                            {formatarMoeda(converterValor(venda['Preço Unitário'] || '0'))}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-right">
+                            <span className="text-sm font-semibold text-green-600 dark:text-green-400">
+                              {formatarMoeda(calcularTotalVenda(venda.total, venda.Quantidade, venda['Preço Unitário']))}
+                            </span>
+                          </td>
+                          {isAdmin && (
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => abrirModalEdicao(venda)}
+                                  disabled={excluindoVenda === venda.id}
+                                  className="p-1.5 text-blue-600 dark:text-blue-400 hover:text-blue-800 hover:bg-blue-50 dark:bg-blue-900/20 rounded-md transition-colors disabled:opacity-50"
+                                  title="Editar venda"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => confirmarExclusao(venda)}
+                                  disabled={excluindoVenda === venda.id}
+                                  className="p-1.5 text-red-600 dark:text-red-400 hover:text-red-800 hover:bg-red-50 dark:bg-red-900/20 rounded-md transition-colors disabled:opacity-50"
+                                  title="Excluir venda"
+                                >
+                                  {excluindoVenda === venda.id ? (
+                                    <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                </button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Hint de scroll */}
+                <div className="text-center py-2 text-xs text-gray-600 dark:text-gray-300 border-t border-gray-200 dark:border-gray-700">
+                  ← Deslize para ver mais colunas →
+                </div>
+              </div>
+
+              {/* Versão Mobile - Cards */}
+              <div className="lg:hidden divide-y divide-gray-200">
                 {vendas.map((venda) => (
-                  <tr key={venda.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {venda['Cód. Referência'] || 'N/A'}
+                  <div key={venda.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 transition-colors">
+                    {/* Header: Produto + Valor */}
+                    <div className="flex justify-between items-start gap-3 mb-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">
+                          {venda['Cód. Referência'] || 'N/A'}
+                        </p>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-2 mb-1">
+                          {venda['Descr. Produto'] || 'N/A'}
+                        </h3>
                       </div>
-                      <div className="text-sm text-gray-500 max-w-xs truncate">
-                        {venda['Descr. Produto'] || 'N/A'}
+                      <div className="flex-shrink-0 text-right">
+                        <p className="text-lg font-bold text-green-600 dark:text-green-400 whitespace-nowrap">
+                          {formatarMoeda(calcularTotalVenda(venda.total, venda.Quantidade, venda['Preço Unitário']))}
+                        </p>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{venda.NomeCli || 'N/A'}</div>
-                      <div className="text-sm text-gray-500">{venda.CIDADE}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatarData(venda['Data de Emissao da NF'])}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {venda.Quantidade}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatarMoeda(converterValor(venda['Preço Unitário'] || '0'))}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-semibold text-green-600">
-                        {formatarMoeda(calcularTotalVenda(
-                          venda.total,
-                          venda.Quantidade,
-                          venda['Preço Unitário']
-                        ))}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {venda['Número da Nota Fiscal']}
-                    </td>
-                    
-                    {/* Coluna de Ações - Apenas para Admin */}
-                    {isAdmin && (
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          {/* Botão Editar */}
+                    </div>
+
+                    {/* Cliente e Cidade */}
+                    <div className="mb-3">
+                      <p className="text-xs text-gray-600 dark:text-gray-300 mb-0.5">Cliente</p>
+                      <p className="text-sm text-gray-900 dark:text-white">{venda.NomeCli || 'N/A'}</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">{venda.CIDADE}</p>
+                    </div>
+
+                    {/* Detalhes da Venda */}
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div>
+                        <p className="text-xs text-gray-600 dark:text-gray-300">Quantidade</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{venda.Quantidade}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600 dark:text-gray-300">Preço Unit.</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          {formatarMoeda(converterValor(venda['Preço Unitário'] || '0'))}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Footer: Data, NF e Ações */}
+                    <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-300">
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          {formatarData(venda['Data de Emissao da NF'])}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-gray-600 dark:text-gray-300">NF: {venda['Número da Nota Fiscal']}</span>
+                          <CopyButton
+                            text={venda['Número da Nota Fiscal']}
+                            successMessage="Número da NF copiado!"
+                            iconSize={12}
+                          />
+                        </div>
+                      </div>
+                      {isAdmin && (
+                        <div className="flex items-center gap-2">
                           <button
                             onClick={() => abrirModalEdicao(venda)}
                             disabled={excluindoVenda === venda.id}
-                            className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors disabled:opacity-50"
+                            className="p-1.5 text-blue-600 dark:text-blue-400 hover:text-blue-800 hover:bg-blue-50 dark:bg-blue-900/20 rounded-md transition-colors disabled:opacity-50"
                             title="Editar venda"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
-
-                          {/* Botão Excluir */}
                           <button
                             onClick={() => confirmarExclusao(venda)}
                             disabled={excluindoVenda === venda.id}
-                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
+                            className="p-1.5 text-red-600 dark:text-red-400 hover:text-red-800 hover:bg-red-50 dark:bg-red-900/20 rounded-md transition-colors disabled:opacity-50"
                             title="Excluir venda"
                           >
                             {excluindoVenda === venda.id ? (
@@ -338,52 +472,28 @@ export default function VendasPage() {
                             )}
                           </button>
                         </div>
-                      </td>
-                    )}
-                  </tr>
+                      )}
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mensagem quando não há vendas */}
-          {vendas.length === 0 && !loading && (
-            <div className="text-center py-12">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              <p className="text-gray-500 mt-2">
-                {debouncedSearchTerm || filtroCity 
-                  ? 'Nenhuma venda encontrada com os filtros aplicados' 
-                  : 'Nenhuma venda encontrada'
-                }
-              </p>
-              {isAdmin && !debouncedSearchTerm && !filtroCity && (
-                <button
-                  onClick={abrirModalCriacao}
-                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Criar primeira venda
-                </button>
-              )}
-            </div>
+              </div>
+            </>
           )}
         </div>
       )}
 
       {/* Paginação */}
       {totalPages > 1 && !loading && (
-        <div className="bg-white rounded-xl shadow-sm px-6 py-3">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 px-6 py-3">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-700">
+            <div className="text-sm text-gray-700 dark:text-gray-200">
               Página {currentPage} de {totalPages} • {totalVendas.toLocaleString()} registros
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="p-2 rounded-md border border-gray-300 text-gray-500 hover:text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 rounded-md border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -398,11 +508,7 @@ export default function VendasPage() {
                     <button
                       key={pageNum}
                       onClick={() => handlePageChange(pageNum)}
-                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                        currentPage === pageNum
-                          ? 'bg-blue-600 text-white'
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
+                      className={`px-3 py-1 text-sm rounded-md transition-colors ${ currentPage === pageNum ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100' }`}
                     >
                       {pageNum}
                     </button>
@@ -413,7 +519,7 @@ export default function VendasPage() {
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="p-2 rounded-md border border-gray-300 text-gray-500 hover:text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 rounded-md border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -433,14 +539,14 @@ export default function VendasPage() {
 
       {/* Alerta de permissão para consultores */}
       {!isAdmin && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg p-4">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
             <div>
               <h3 className="text-sm font-medium text-blue-800">
                 Visualização de Consultor
               </h3>
-              <p className="text-sm text-blue-700 mt-1">
+              <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
                 Você está visualizando apenas suas vendas. Para gerenciar todas as vendas, 
                 entre em contato com um administrador.
               </p>

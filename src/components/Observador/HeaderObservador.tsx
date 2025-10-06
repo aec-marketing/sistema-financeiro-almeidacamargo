@@ -36,13 +36,13 @@ export function HeaderObservador({
   }, []);
 
   return (
-    <header className="bg-gradient-to-r from-blue-900 to-blue-700 text-white px-8 py-4 shadow-lg">
+    <header className="bg-gradient-to-r from-blue-900 to-blue-700 text-white px-8 py-4 shadow-lg dark:shadow-gray-900/50">
       <div className="flex items-center justify-between">
         
         {/* Logo e Título */}
         <div className="flex items-center gap-4">
           {mostrarLogo && (
-            <div className="bg-white rounded-lg p-2">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-2">
               <div className="w-16 h-16 flex items-center justify-center">
                 {/* Substitua por sua logo real */}
                 <span className="text-blue-900 font-bold text-2xl">A&C</span>
@@ -94,11 +94,7 @@ export function HeaderObservador({
           {onToggleModoPrivado && (
             <button
               onClick={onToggleModoPrivado}
-              className={`p-3 rounded-lg transition-colors flex items-center gap-2 ${
-                modoPrivado
-                  ? 'bg-purple-600 hover:bg-purple-700'
-                  : 'bg-gray-600 hover:bg-gray-700'
-              }`}
+              className={`p-3 rounded-lg transition-colors flex items-center gap-2 ${ modoPrivado ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 hover:bg-gray-700' }`}
               title={modoPrivado ? 'Modo Privado Ativo' : 'Modo Público'}
             >
               {modoPrivado ? (

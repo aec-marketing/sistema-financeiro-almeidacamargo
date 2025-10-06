@@ -1,3 +1,48 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Toast animations */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+
+/* Dark mode transitions */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Prevent transition on page load */
+.no-transition * {
+  transition: none !important;
+}
+
+/* Dark mode root styles */
+:root.dark {
+  color-scheme: dark;
+}
+
+/* Scrollbar dark mode */
+:root.dark ::-webkit-scrollbar {
+  background-color: rgb(31, 41, 55);
+}
+
+:root.dark ::-webkit-scrollbar-thumb {
+  background-color: rgb(75, 85, 99);
+}
+
+:root.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(107, 114, 128);
+}

@@ -65,16 +65,11 @@ export function GraficoTop3Marcas({
             <div className="flex items-center justify-between mb-1">
               
               {/* Posição e Nome */}
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <span className={`
-                  w-6 h-6 rounded-full flex items-center justify-center 
-                  text-xs font-bold text-white flex-shrink-0
-                  bg-gradient-to-br ${corMedalha}
-                  shadow-sm
-                `}>
+              <div className="items-center gap-2 flex-1 min-w-0">
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 bg-gradient-to-br ${corMedalha} shadow-sm`}>
                   {index + 1}
                 </span>
-                <span className="font-medium text-gray-700 text-sm truncate">
+                <span className="font-medium text-gray-700 dark:text-gray-200 text-sm truncate">
                   {marca.nome}
                 </span>
               </div>
@@ -82,10 +77,10 @@ export function GraficoTop3Marcas({
               {/* Valor e Percentual */}
               {mostrarValores && (
                 <div className="text-right ml-2">
-                  <div className="text-sm font-bold text-gray-800">
+                  <div className="text-sm font-bold text-gray-800 dark:text-gray-100">
                     {formatarMoeda(marca.total)}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-gray-600 dark:text-gray-300">
                     {formatarPercentual(marca.percentual, 0)}
                   </div>
                 </div>
@@ -93,14 +88,9 @@ export function GraficoTop3Marcas({
             </div>
 
             {/* Barra de Progresso */}
-            <div className="relative w-full bg-gray-200 rounded-full overflow-hidden">
+            <div className="relative w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
               <div
-                className={`
-                  ${classesAltura[altura]} 
-                  bg-gradient-to-r ${corMedalha}
-                  rounded-full transition-all duration-700 ease-out
-                  group-hover:opacity-90
-                `}
+                className={`${classesAltura[altura]} bg-gradient-to-r ${corMedalha} rounded-full transition-all duration-700 ease-out group-hover:opacity-90`}
                 style={{ width: `${larguraBarra}%` }}
               >
                 {/* Brilho animado */}
@@ -110,7 +100,7 @@ export function GraficoTop3Marcas({
 
             {/* Percentual abaixo da barra (alternativa) */}
             {!mostrarValores && (
-              <div className="text-xs text-gray-500 mt-1 text-right">
+              <div className="text-xs text-gray-600 dark:text-gray-300 mt-1 text-right">
                 {formatarPercentual(marca.percentual, 1)}
               </div>
             )}

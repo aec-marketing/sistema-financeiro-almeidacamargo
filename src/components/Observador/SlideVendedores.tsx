@@ -46,10 +46,10 @@ export function SlideVendedores({
       <div className="flex items-center justify-center h-full bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="text-center">
           <div className="text-6xl mb-4">📊</div>
-          <h2 className="text-2xl font-bold text-gray-700 mb-2">
+          <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200 mb-2">
             Nenhum vendedor encontrado
           </h2>
-          <p className="text-gray-500">
+          <p className="text-gray-600 dark:text-gray-300">
             Não há dados de vendedores para exibir no momento
           </p>
         </div>
@@ -62,17 +62,17 @@ export function SlideVendedores({
       
       {/* Título do Slide */}
       <div className="mb-6">
-        <h2 className="text-4xl font-bold text-gray-800 mb-2">
+        <h2 className="text-4xl font-bold text-gray-800 dark:text-gray-100 mb-2">
           Performance dos Vendedores
         </h2>
         <div className="flex items-center justify-between">
-          <p className="text-xl text-gray-600">
+          <p className="text-xl text-gray-600 dark:text-gray-300">
             {obterNomeMesCompleto(mesAtual)} de {anoAtual}
           </p>
           
           {/* Indicador de página */}
           {temMultiplasPaginas && (
-            <div className="text-sm text-gray-500 bg-white px-4 py-2 rounded-full shadow">
+            <div className="text-sm text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 px-4 py-2 rounded-full shadow">
               Página {paginaAtual + 1} de {totalPaginas}
             </div>
           )}

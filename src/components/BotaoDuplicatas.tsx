@@ -83,9 +83,9 @@ export default function BotaoDuplicatas({ user }: BotaoDuplicatasProps) {
     <div className="relative">
       {loading ? (
         // Estado de carregamento
-        <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg">
-          <RefreshCw className="h-4 w-4 animate-spin text-gray-500" />
-          <span className="text-sm text-gray-600">Verificando duplicatas...</span>
+        <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
+          <RefreshCw className="h-4 w-4 animate-spin text-gray-600 dark:text-gray-300" />
+          <span className="text-sm text-gray-600 dark:text-gray-300">Verificando duplicatas...</span>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -93,7 +93,7 @@ export default function BotaoDuplicatas({ user }: BotaoDuplicatasProps) {
           {temAltaConfianca && (
             <button
               onClick={irParaDuplicatas}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium shadow-lg transition-all duration-200 hover:shadow-xl"
+              className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium shadow-lg dark:shadow-gray-900/50 transition-all duration-200 hover:shadow-xl"
             >
               <Zap className="h-4 w-4" />
               <span className="text-sm">
@@ -124,7 +124,7 @@ export default function BotaoDuplicatas({ user }: BotaoDuplicatasProps) {
           {!temAltaConfianca && !temMediaConfianca && relatorio && relatorio.totalGrupos > 0 && (
             <button
               onClick={irParaDuplicatas}
-              className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-md text-sm transition-colors"
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-600 dark:text-gray-300 rounded-md text-sm transition-colors"
             >
               <Eye className="h-4 w-4" />
               <span>Ver análise de duplicatas</span>
@@ -134,18 +134,18 @@ export default function BotaoDuplicatas({ user }: BotaoDuplicatasProps) {
           {/* Tooltip com detalhes */}
           {relatorio && (
             <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50">
-              <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-4 w-64">
-                <h4 className="font-semibold text-gray-900 mb-2">Análise de Duplicatas</h4>
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg dark:shadow-gray-900/50 p-4 w-64">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Análise de Duplicatas</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Total detectadas:</span>
+                    <span className="text-gray-600 dark:text-gray-300">Total detectadas:</span>
                     <span className="font-medium">{relatorio.totalGrupos}</span>
                   </div>
                   
                   {relatorio.alta_confianca > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-red-600">Alta confiança (85%+):</span>
-                      <span className="font-medium text-red-600">{relatorio.alta_confianca}</span>
+                      <span className="text-red-600 dark:text-red-400">Alta confiança (85%+):</span>
+                      <span className="font-medium text-red-600 dark:text-red-400">{relatorio.alta_confianca}</span>
                     </div>
                   )}
                   
@@ -158,14 +158,14 @@ export default function BotaoDuplicatas({ user }: BotaoDuplicatasProps) {
                   
                   {relatorio.baixa_confianca > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Baixa confiança (&lt;70%):</span>
-                      <span className="font-medium text-gray-500">{relatorio.baixa_confianca}</span>
+                      <span className="text-gray-600 dark:text-gray-300">Baixa confiança (&lt;70%):</span>
+                      <span className="font-medium text-gray-600 dark:text-gray-300">{relatorio.baixa_confianca}</span>
                     </div>
                   )}
                 </div>
                 
                 <div className="mt-3 pt-3 border-t border-gray-100">
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-600 dark:text-gray-300">
                     Clique para ir à página de administração de duplicatas
                   </p>
                 </div>

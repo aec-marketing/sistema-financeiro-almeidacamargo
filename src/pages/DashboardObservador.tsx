@@ -126,7 +126,7 @@ export function DashboardObservador() {
         <div className="h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
           <div className="text-center">
             <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mb-4"></div>
-            <p className="text-xl text-gray-600 font-medium">Carregando dados...</p>
+            <p className="text-xl text-gray-600 dark:text-gray-300 font-medium">Carregando dados...</p>
           </div>
         </div>
       );
@@ -138,15 +138,15 @@ export function DashboardObservador() {
         <div className="h-full flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-50">
           <div className="text-center max-w-md">
             <div className="text-6xl mb-4">⚠️</div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">
               Erro ao Carregar Dados
             </h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
               {errorVendedores?.message || errorMetricas?.message} {/* || errorRegional?.message (desabilitado) */}
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-6 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
             >
               Recarregar Página
             </button>
@@ -247,7 +247,7 @@ export function DashboardObservador() {
       />
 
       {/* Dica de Tela Cheia (aparece brevemente no início) */}
-      <div className="fixed top-20 right-8 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg text-sm opacity-0 animate-fade-in-out pointer-events-none">
+      <div className="fixed top-20 right-8 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg dark:shadow-gray-900/50 text-sm opacity-0 animate-fade-in-out pointer-events-none">
         💡 Pressione <kbd className="px-2 py-1 bg-gray-700 rounded">F11</kbd> para tela cheia
       </div>
     </div>

@@ -8,51 +8,51 @@ export default function RelatoriosPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Relatórios</h1>
-            <p className="text-gray-600">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Relatórios</h1>
+            <p className="text-gray-600 dark:text-gray-300">
               {isAdmin
                 ? 'Relatórios e análises completas'
                 : `Seus relatórios - ${user?.nome}`
               }
             </p>
           </div>
-          <FileText className="h-8 w-8 text-blue-600" />
+          <FileText className="h-8 w-8 text-blue-600 dark:text-blue-400" />
         </div>
       </div>
 
       {/* Tipos de Relatórios */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center mb-4">
-            <TrendingUp className="h-8 w-8 text-green-600 mr-3" />
-            <h3 className="text-lg font-semibold text-gray-900">Vendas</h3>
+            <TrendingUp className="h-8 w-8 text-green-600 dark:text-green-400 mr-3" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Vendas</h3>
           </div>
-          <p className="text-gray-600 mb-4">Relatórios de performance de vendas e faturamento</p>
+          <p className="text-gray-600 dark:text-gray-300 mb-4">Relatórios de performance de vendas e faturamento</p>
           <button className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition-colors">
             Gerar Relatório
           </button>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center mb-4">
-            <Users className="h-8 w-8 text-blue-600 mr-3" />
-            <h3 className="text-lg font-semibold text-gray-900">Clientes</h3>
+            <Users className="h-8 w-8 text-blue-600 dark:text-blue-400 mr-3" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Clientes</h3>
           </div>
-          <p className="text-gray-600 mb-4">Análise de carteira de clientes e comportamento</p>
-          <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors">
+          <p className="text-gray-600 dark:text-gray-300 mb-4">Análise de carteira de clientes e comportamento</p>
+          <button className="w-full bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white py-2 px-4 rounded-lg transition-colors">
             Gerar Relatório
           </button>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center mb-4">
-            <Calendar className="h-8 w-8 text-purple-600 mr-3" />
-            <h3 className="text-lg font-semibold text-gray-900">Período</h3>
+            <Calendar className="h-8 w-8 text-purple-600 dark:text-purple-400 mr-3" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Período</h3>
           </div>
-          <p className="text-gray-600 mb-4">Relatórios comparativos por período</p>
+          <p className="text-gray-600 dark:text-gray-300 mb-4">Relatórios comparativos por período</p>
           <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg transition-colors">
             Gerar Relatório
           </button>

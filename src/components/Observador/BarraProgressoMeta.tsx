@@ -61,7 +61,7 @@ export function BarraProgressoMeta({
       {(label || mostrarPercentual) && (
         <div className="flex items-center justify-between mb-2">
           {label && (
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
               {label}
             </span>
           )}
@@ -74,7 +74,7 @@ export function BarraProgressoMeta({
       )}
 
       {/* Barra de Progresso */}
-      <div className="relative w-full bg-gray-200 rounded-full overflow-hidden">
+      <div className="relative w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
         <div
           className={`${classesAltura[altura]} ${obterClassesCorProgresso(cor)} rounded-full transition-all duration-500 ease-out`}
           style={{ width: `${percentualVisual}%` }}
@@ -86,11 +86,11 @@ export function BarraProgressoMeta({
 
       {/* Valores Realizado / Meta */}
       {mostrarValores && (
-        <div className="flex items-center justify-between mt-2 text-xs text-gray-600">
+        <div className="flex items-center justify-between mt-2 text-xs text-gray-600 dark:text-gray-300">
           <span className="font-medium">
             {formatarMoeda(valorRealizado)}
           </span>
-          <span className="text-gray-400">
+          <span className="text-gray-600 dark:text-gray-300">
             Meta: {formatarMoeda(valorMeta)}
           </span>
         </div>
@@ -98,7 +98,7 @@ export function BarraProgressoMeta({
 
       {/* Indicador se passou da meta */}
       {percentual > 100 && (
-        <div className="mt-1 text-xs text-green-600 font-semibold flex items-center gap-1">
+        <div className="mt-1 text-xs text-green-600 dark:text-green-400 font-semibold flex items-center gap-1">
           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
             <path 
               fillRule="evenodd" 
