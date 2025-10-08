@@ -17,6 +17,7 @@ import ImportacaoDados from './pages/ImportacaoDados.tsx'
 import { DashboardObservador } from './pages/DashboardObservador';
 import { ObservadorRoute } from './components/Auth/ObservadorRoute';
 import ImportacaoPage from './pages/ImportacaoPage';
+import ComparativoPeriodosPage from './pages/ComparativoPeriodosPage';
 
 function App() {
   const [user, setUser] = useState<UserProfile | null>(null)
@@ -141,6 +142,7 @@ function App() {
                     <Route path="/templates" element={<TemplatesPage />} />
                     <Route path="/gestao-usuarios" element={<GestaoUsuarios />} />
                     <Route path="/admin/importacao" element={<ImportacaoDados />} />
+  <Route path="/comparativo" element={<ComparativoPeriodosPage />} />
 
                     {/* Rota protegida - apenas admin */}
                     <Route
