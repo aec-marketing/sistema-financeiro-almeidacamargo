@@ -43,17 +43,27 @@ export function useMarcasPerformance(
       setIsLoading(true);
       setError(null);
 
+      // Formato ISO: YYYY-MM-DD
+      const mesFormatado = String(mes).padStart(2, '0');
+      const mesInicio = `${ano}-${mesFormatado}-01`;
+
+      // Calcular último dia do mês
+      const ultimoDiaMes = new Date(ano, mes, 0).getDate();
+      const mesFim = `${ano}-${mesFormatado}-${String(ultimoDiaMes).padStart(2, '0')}`;
+
       // Buscar vendas do ano
       const { data: vendasAno } = await supabase
         .from('vendas')
         .select('total, MARCA')
-        .like('"Data de Emissao da NF"', `%/${ano}`);
+        .gte('"Data de Emissao da NF"', `${ano}-01-01`)
+        .lte('"Data de Emissao da NF"', `${ano}-12-31`);
 
       // Buscar vendas do mês
       const { data: vendasMes } = await supabase
         .from('vendas')
         .select('total, MARCA')
-        .like('"Data de Emissao da NF"', `%/${String(mes).padStart(2, '0')}/${ano}`);
+        .gte('"Data de Emissao da NF"', mesInicio)
+        .lte('"Data de Emissao da NF"', mesFim);
 
       if (!vendasAno || !vendasMes) {
         setMarcas([]);

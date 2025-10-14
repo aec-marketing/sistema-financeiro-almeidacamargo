@@ -1,5 +1,6 @@
 import { supabase, type Cliente } from '../lib/supabase'
 import { salvarMesclagem, estaEmMesclagem } from './mesclagem-storage'
+import { formatarDataISO } from './formatters'
 
 // Tipos específicos para duplicatas
 export interface GrupoDuplicata {
@@ -305,7 +306,7 @@ export async function mesclarDuplicatas(sugestao: SugestaoDuplicata): Promise<bo
     // Salvar informação de mesclagem virtual
     salvarMesclagem({
       clientePrincipalId: sugestao.clientePrincipal.id,
-      dataUnificacao: new Date().toLocaleDateString('pt-BR'),
+      dataUnificacao: formatarDataISO(new Date()),
       clientesOriginais: sugestao.grupo.clientes.map(cliente => ({
         id: cliente.id,
         nome: cliente.Nome || '',

@@ -343,24 +343,30 @@ export function transformarDadosParaInsercao(
 // Conversores específicos
 function converterData(valor: string): string | null {
   if (!valor) return null;
-  
-  // DD/MM/YYYY
+
+  // DD/MM/YYYY - converter para ISO YYYY-MM-DD
   const match1 = valor.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (match1) {
-    return `${match1[3]}-${match1[2]}-${match1[1]}`; // YYYY-MM-DD para Postgres
+    const dia = match1[1];
+    const mes = match1[2];
+    const ano = match1[3];
+    return `${ano}-${mes}-${dia}`; // YYYY-MM-DD formato ISO
   }
-  
-  // DD-MM-YYYY
+
+  // DD-MM-YYYY - converter para ISO YYYY-MM-DD
   const match2 = valor.match(/^(\d{2})-(\d{2})-(\d{4})$/);
   if (match2) {
-    return `${match2[3]}-${match2[2]}-${match2[1]}`;
+    const dia = match2[1];
+    const mes = match2[2];
+    const ano = match2[3];
+    return `${ano}-${mes}-${dia}`; // YYYY-MM-DD formato ISO
   }
-  
-  // YYYY-MM-DD (já está correto)
+
+  // YYYY-MM-DD (já está correto no formato ISO)
   if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
     return valor;
   }
-  
+
   return null;
 }
 

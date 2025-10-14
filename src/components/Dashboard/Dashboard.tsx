@@ -64,11 +64,20 @@ export default function Dashboard({ user }: DashboardProps) {
   const formatarData = (data: string): string => {
     if (!data) return ''
     try {
-      // Assumindo formato DD/MM/YYYY
-      const partes = data.split('/')
-      if (partes.length === 3) {
-        return `${partes[0]}/${partes[1]}/${partes[2]}`
+      // Se está em formato ISO (YYYY-MM-DD), converter para brasileiro
+      if (data.includes('-') && data.length === 10) {
+        const [ano, mes, dia] = data.split('-')
+        return `${dia}/${mes}/${ano}`
       }
+
+      // Se está em formato brasileiro DD/MM/YYYY
+      if (data.includes('/')) {
+        const partes = data.split('/')
+        if (partes.length === 3) {
+          return `${partes[0]}/${partes[1]}/${partes[2]}`
+        }
+      }
+
       return data
     } catch {
       return data

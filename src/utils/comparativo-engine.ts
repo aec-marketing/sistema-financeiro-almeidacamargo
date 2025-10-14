@@ -41,22 +41,30 @@ import {
 
 /**
  * Busca vendas no Supabase dentro de um intervalo de datas
+ * Se for vendedor, filtra apenas suas vendas
  */
 const buscarVendasPeriodo = async (
   dataInicio: Date,
-  dataFim: Date
+  dataFim: Date,
+  cdRepresentante?: number | null
 ): Promise<Venda[]> => {
   try {
     // Formatar datas para ISO string (YYYY-MM-DD)
     const inicioISO = dataInicio.toISOString().split('T')[0];
     const fimISO = dataFim.toISOString().split('T')[0];
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('vendas')
       .select('*')
       .gte('Data de Emissao da NF', inicioISO)
-      .lte('Data de Emissao da NF', fimISO)
-      .order('Data de Emissao da NF', { ascending: false });
+      .lte('Data de Emissao da NF', fimISO);
+
+    // Se for vendedor, filtrar apenas suas vendas
+    if (cdRepresentante) {
+      query = query.eq('cdRepr', cdRepresentante);
+    }
+
+    const { data, error } = await query.order('Data de Emissao da NF', { ascending: false });
 
     if (error) {
       console.error('Erro ao buscar vendas:', error);
@@ -144,7 +152,7 @@ const aplicarFiltros = (
 
 /**
  * Executa comparação completa entre dois períodos
- * 
+ *
  * Fluxo:
  * 1. Busca dados do período A
  * 2. Busca dados do período B
@@ -154,28 +162,32 @@ const aplicarFiltros = (
  * 6. Retorna resultado estruturado
  */
 export const executarComparacao = async (
-  config: ConfigComparacao
+  config: ConfigComparacao,
+  cdRepresentante?: number | null
 ): Promise<ResultadoComparacao> => {
   try {
     console.log('🔍 Iniciando comparação...', {
       periodoA: config.periodos.periodoA.label,
       periodoB: config.periodos.periodoB.label,
       agrupamento: config.agrupamento,
-      filtros: config.filtros.length
+      filtros: config.filtros.length,
+      vendedor: cdRepresentante ? `Filtrando por vendedor ${cdRepresentante}` : 'Todos os dados'
     });
 
     // ============================================
     // ETAPA 1: Buscar dados dos dois períodos
     // ============================================
-    
+
     const [vendasA, vendasB] = await Promise.all([
       buscarVendasPeriodo(
         config.periodos.periodoA.inicio,
-        config.periodos.periodoA.fim
+        config.periodos.periodoA.fim,
+        cdRepresentante
       ),
       buscarVendasPeriodo(
         config.periodos.periodoB.inicio,
-        config.periodos.periodoB.fim
+        config.periodos.periodoB.fim,
+        cdRepresentante
       )
     ]);
 

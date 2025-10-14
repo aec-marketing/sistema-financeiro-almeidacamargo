@@ -175,14 +175,28 @@ function useVendasCliente(cliente: Cliente | null) {
 
   const calcularFrequenciaCompras = (primeiraCompra: string, ultimaCompra: string, totalVendas: number): string => {
     if (!primeiraCompra || !ultimaCompra || totalVendas <= 1) return 'Cliente novo'
-    
+
     try {
-      const primeira = new Date(primeiraCompra.split('/').reverse().join('-'))
-      const ultima = new Date(ultimaCompra.split('/').reverse().join('-'))
+      // Converter para ISO se estiver em formato brasileiro
+      let primeiraISO = primeiraCompra
+      let ultimaISO = ultimaCompra
+
+      if (primeiraCompra.includes('/')) {
+        const [dia, mes, ano] = primeiraCompra.split('/')
+        primeiraISO = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`
+      }
+
+      if (ultimaCompra.includes('/')) {
+        const [dia, mes, ano] = ultimaCompra.split('/')
+        ultimaISO = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`
+      }
+
+      const primeira = new Date(primeiraISO)
+      const ultima = new Date(ultimaISO)
       const diffMeses = (ultima.getTime() - primeira.getTime()) / (1000 * 60 * 60 * 24 * 30)
-      
+
       if (diffMeses <= 3) return 'Muito frequente'
-      if (diffMeses <= 6) return 'Frequente'  
+      if (diffMeses <= 6) return 'Frequente'
       if (diffMeses <= 12) return 'Regular'
       return 'Esporádico'
     } catch {
@@ -242,17 +256,42 @@ useEffect(() => {
 
           // Ordenar por data para pegar primeira e última compra
           const vendasOrdenadas = [...vendas].sort((a, b) => {
-            const dataA = new Date(a['Data de Emissao da NF'].split('/').reverse().join('-'))
-const dataB = new Date(b['Data de Emissao da NF'].split('/').reverse().join('-'))
+            const dataAStr = a['Data de Emissao da NF']
+            const dataBStr = b['Data de Emissao da NF']
+
+            // Converter para ISO se estiver em formato brasileiro
+            let dataAISO = dataAStr
+            let dataBISO = dataBStr
+
+            if (dataAStr.includes('/')) {
+              const [dia, mes, ano] = dataAStr.split('/')
+              dataAISO = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`
+            }
+
+            if (dataBStr.includes('/')) {
+              const [dia, mes, ano] = dataBStr.split('/')
+              dataBISO = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`
+            }
+
+            const dataA = new Date(dataAISO)
+            const dataB = new Date(dataBISO)
             return dataA.getTime() - dataB.getTime()
           })
 
           const primeiraCompra = vendasOrdenadas[0]['Data de Emissao da NF']
-const ultimaCompra = vendasOrdenadas[vendasOrdenadas.length - 1]['Data de Emissao da NF']
+          const ultimaCompra = vendasOrdenadas[vendasOrdenadas.length - 1]['Data de Emissao da NF']
 
           // Cliente ativo se comprou nos últimos 6 meses
           const agora = new Date()
-          const ultimaCompraDate = new Date(ultimaCompra.split('/').reverse().join('-'))
+
+          // Converter última compra para ISO
+          let ultimaCompraISO = ultimaCompra
+          if (ultimaCompra.includes('/')) {
+            const [dia, mes, ano] = ultimaCompra.split('/')
+            ultimaCompraISO = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`
+          }
+
+          const ultimaCompraDate = new Date(ultimaCompraISO)
           const mesesSemCompra = (agora.getTime() - ultimaCompraDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
           const statusAtivo = mesesSemCompra <= 6
 

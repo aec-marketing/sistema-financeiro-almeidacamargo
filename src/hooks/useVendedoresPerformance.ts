@@ -44,43 +44,49 @@ export function useVendedoresPerformance(
       }
 
       // 2. Buscar TODAS as vendas do mês e do ano de uma vez
+      // Formato ISO: YYYY-MM-DD
+      const mesFormatado = String(mes).padStart(2, '0');
+      const mesInicio = `${ano}-${mesFormatado}-01`;
 
+      // Calcular último dia do mês
+      const ultimoDiaMes = new Date(ano, mes, 0).getDate();
+      const mesFim = `${ano}-${mesFormatado}-${String(ultimoDiaMes).padStart(2, '0')}`;
 
       const { data: todasVendasMes } = await supabase
-  .from('vendas')
-  .select('total, MARCA, NomeRepr, cdRepr')
-  .like('"Data de Emissao da NF"', `%/${String(mes).padStart(2, '0')}/${ano}`);
+        .from('vendas')
+        .select('total, MARCA, NomeRepr, cdRepr')
+        .gte('"Data de Emissao da NF"', mesInicio)
+        .lte('"Data de Emissao da NF"', mesFim);
 
       const { data: todasVendasAno } = await supabase
-  .from('vendas')
-  .select('total, MARCA, NomeRepr, cdRepr')
-  .like('"Data de Emissao da NF"', `%/${ano}`);
+        .from('vendas')
+        .select('total, MARCA, NomeRepr, cdRepr')
+        .gte('"Data de Emissao da NF"', `${ano}-01-01`)
+        .lte('"Data de Emissao da NF"', `${ano}-12-31`);
 
       // 3. Processar cada vendedor
       const vendedoresComPerformance: VendedorPerformance[] = profiles.map((profile) => {
-        
-        // Filtrar vendas do mês deste vendedor específico
-        // DEBUG: Ver o que está vindo do banco
 
-        const vendasMesVendedor = (todasVendasMes || []).filter(v => 
-  profile.cd_representante && v.cdRepr === profile.cd_representante
-);
+        // Filtrar vendas do mês deste vendedor específico
+        const vendasMesVendedor = (todasVendasMes || []).filter(v =>
+          profile.cd_representante && v.cdRepr === profile.cd_representante
+        );
 
         // Filtrar vendas do ano deste vendedor específico
-        const vendasAnoVendedor = (todasVendasAno || []).filter(v => 
-  profile.cd_representante && v.cdRepr === profile.cd_representante
-);
-        // Calcular totais
-// Calcular totais (converter para número)
-const vendasMesAtual = vendasMesVendedor.reduce((acc, v) => {
-  const valor = Number(v.total) || 0;
-  return acc + valor;
-}, 0);
+        const vendasAnoVendedor = (todasVendasAno || []).filter(v =>
+          profile.cd_representante && v.cdRepr === profile.cd_representante
+        );
 
-const vendasAnoAtual = vendasAnoVendedor.reduce((acc, v) => {
-  const valor = Number(v.total) || 0;
-  return acc + valor;
-}, 0);
+        // Calcular totais (converter para número)
+        const vendasMesAtual = vendasMesVendedor.reduce((acc, v) => {
+          const valor = Number(v.total) || 0;
+          return acc + valor;
+        }, 0);
+
+        const vendasAnoAtual = vendasAnoVendedor.reduce((acc, v) => {
+          const valor = Number(v.total) || 0;
+          return acc + valor;
+        }, 0);
 
         // Calcular top 3 marcas do mês
         const marcasAgrupadas = agruparPor(
@@ -89,21 +95,21 @@ const vendasAnoAtual = vendasAnoVendedor.reduce((acc, v) => {
         );
         
         const marcasTotais = Object.entries(marcasAgrupadas).map(([marca, vendas]) => ({
-  nome: marca,
-  total: vendas.reduce((acc, v) => {
-    const valor = Number(v.total) || 0;
-    return acc + valor;
-  }, 0),
-  percentual: 0,
-}));
+          nome: marca,
+          total: vendas.reduce((acc, v) => {
+            const valor = Number(v.total) || 0;
+            return acc + valor;
+          }, 0),
+          percentual: 0,
+        }));
 
         const marcasOrdenadas = ordenarPor(marcasTotais, 'total', 'desc');
         const top3Marcas = marcasOrdenadas.slice(0, 3);
 
         // Calcular percentuais das top 3 marcas
         top3Marcas.forEach(marca => {
-          marca.percentual = vendasMesAtual > 0 
-            ? Math.round((marca.total / vendasMesAtual) * 100) 
+          marca.percentual = vendasMesAtual > 0
+            ? Math.round((marca.total / vendasMesAtual) * 100)
             : 0;
         });
 

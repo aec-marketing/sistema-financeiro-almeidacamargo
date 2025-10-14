@@ -17,18 +17,27 @@ import {
 } from '../types/comparativo';
 import { executarComparacao, validarConfiguracao } from '../utils/comparativo-engine';
 import { gerarInsights } from '../utils/insights-generator';
+import { useUserAccess } from '../hooks/useUserAccess';
 import SeletorPeriodos from '../components/Comparativo/SeletorPeriodos';
 import FiltrosComparacao from '../components/Comparativo/FiltrosComparacao';
 import ControlesVisualizacao from '../components/Comparativo/ControlesVisualizacao';
 import CardsResumo from '../components/Comparativo/CardsResumo';
 import TabelaDetalhada from '../components/Comparativo/TabelaDetalhada';
 import GraficosComparacao from '../components/Comparativo/GraficosComparacao';
+import ModalEditarPeriodos from '../components/Comparativo/ModalEditarPeriodos';
 
 // ============================================
 // COMPONENTE PRINCIPAL
 // ============================================
 
 export default function ComparativoPeriodosPage() {
+  // ============================================
+  // CONTROLE DE ACESSO
+  // ============================================
+
+  // Obter dados do usuário
+  const { user, isVendedor } = useUserAccess();
+
   // ============================================
   // ESTADOS
   // ============================================
@@ -46,6 +55,7 @@ export default function ComparativoPeriodosPage() {
 
   // Controles de UI
   const [etapaAtual, setEtapaAtual] = useState<'periodos' | 'filtros' | 'resultados'>('periodos');
+  const [mostrarModalEdicao, setMostrarModalEdicao] = useState(false);
 
   // ============================================
   // FUNÇÃO: Executar Comparação
@@ -80,8 +90,11 @@ export default function ComparativoPeriodosPage() {
     try {
       console.log('🚀 Iniciando comparação com config:', config);
 
-      // Executar engine
-      const resultadoComparacao = await executarComparacao(config);
+      // Se for vendedor, passar o cd_representante
+      const cdRepresentante = isVendedor ? user?.cd_representante : null;
+
+      // Executar engine COM filtro de vendedor
+      const resultadoComparacao = await executarComparacao(config, cdRepresentante);
 
       // Gerar insights
       const insights = gerarInsights(resultadoComparacao);
@@ -123,6 +136,45 @@ export default function ComparativoPeriodosPage() {
 
   const handleRemoverFiltro = (id: number) => {
     setFiltros(prev => prev.filter(f => f.id !== id));
+  };
+
+  // ============================================
+  // FUNÇÃO: Reaplicar Comparação com Novos Períodos
+  // ============================================
+
+  const handleReaplicarComparacao = async (novosPeriodos: PeriodoComparacao) => {
+    setPeriodos(novosPeriodos);
+    setMostrarModalEdicao(false);
+
+    // Executar comparação automaticamente
+    const config: ConfigComparacao = {
+      periodos: novosPeriodos,
+      filtros,
+      agrupamento,
+      metrica
+    };
+
+    const validacao = validarConfiguracao(config);
+    if (!validacao.valido) {
+      setErro(validacao.erros.join(', '));
+      return;
+    }
+
+    setCarregando(true);
+    setErro(null);
+
+    try {
+      const cdRepresentante = isVendedor ? user?.cd_representante : null;
+      const resultadoComparacao = await executarComparacao(config, cdRepresentante);
+      const insights = gerarInsights(resultadoComparacao);
+      resultadoComparacao.insights = insights;
+      setResultado(resultadoComparacao);
+    } catch (error) {
+      console.error('❌ Erro ao executar comparação:', error);
+      setErro('Erro ao executar comparação. Tente novamente.');
+    } finally {
+      setCarregando(false);
+    }
   };
 
   // ============================================
@@ -238,19 +290,36 @@ export default function ComparativoPeriodosPage() {
         {/* ETAPA 2: Filtros e Configurações */}
 {etapaAtual === 'filtros' && (
   <div className="space-y-6">
-    {/* Filtros */}
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-        Filtros (opcional)
-      </h2>
-      
-      {/* Componente FiltrosComparacao */}
-      <FiltrosComparacao
-        filtros={filtros}
-        onAdicionarFiltro={handleAdicionarFiltro}
-        onRemoverFiltro={handleRemoverFiltro}
-      />
-    </div>
+    {/* Filtros - APENAS PARA ADMIN */}
+    {!isVendedor ? (
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          Filtros (opcional)
+        </h2>
+
+        <FiltrosComparacao
+          filtros={filtros}
+          onAdicionarFiltro={handleAdicionarFiltro}
+          onRemoverFiltro={handleRemoverFiltro}
+        />
+      </div>
+    ) : (
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+        <div className="flex items-center gap-3">
+          <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div>
+            <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+              Visualizando apenas suas vendas
+            </h3>
+            <p className="text-sm text-blue-800 dark:text-blue-200 mt-1">
+              Como vendedor, você está visualizando automaticamente apenas as vendas relacionadas ao seu código de representante ({user?.cd_representante}).
+            </p>
+          </div>
+        </div>
+      </div>
+    )}
 
             {/* Controles de Visualização */}
 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
@@ -264,6 +333,7 @@ export default function ComparativoPeriodosPage() {
     metrica={metrica}
     onAgrupamentoChange={setAgrupamento}
     onMetricaChange={setMetrica}
+    isVendedor={isVendedor}
   />
 </div>
 
@@ -307,19 +377,47 @@ export default function ComparativoPeriodosPage() {
           <div className="space-y-6">
             {/* Resumo dos Períodos Comparados */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                📅 Comparando
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  📅 Comparando
+                </h2>
+                <button
+                  onClick={() => setMostrarModalEdicao(true)}
+                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                  Editar Períodos
+                </button>
+              </div>
+
               <div className="flex items-center gap-4">
                 <div className="flex-1 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
                   <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">Período A</p>
                   <p className="text-lg font-bold text-gray-900 dark:text-white">{periodos?.periodoA.label}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                    {periodos?.periodoA.inicio.toLocaleDateString('pt-BR')} até {periodos?.periodoA.fim.toLocaleDateString('pt-BR')}
+                  </p>
                 </div>
                 <div className="text-2xl font-bold text-gray-400">VS</div>
                 <div className="flex-1 bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
                   <p className="text-sm text-green-600 dark:text-green-400 font-medium">Período B</p>
                   <p className="text-lg font-bold text-gray-900 dark:text-white">{periodos?.periodoB.label}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                    {periodos?.periodoB.inicio.toLocaleDateString('pt-BR')} até {periodos?.periodoB.fim.toLocaleDateString('pt-BR')}
+                  </p>
                 </div>
+              </div>
+
+              {/* Info sobre manter filtros */}
+              <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                <p className="text-xs text-blue-800 dark:text-blue-200 flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Ao alterar os períodos, seus filtros e configurações serão mantidos
+                </p>
               </div>
             </div>
 
@@ -388,6 +486,16 @@ export default function ComparativoPeriodosPage() {
           </div>
         )}
       </div>
+
+      {/* Modal de Edição de Períodos */}
+      {mostrarModalEdicao && periodos && (
+        <ModalEditarPeriodos
+          periodosAtuais={periodos}
+          onSalvar={handleReaplicarComparacao}
+          onFechar={() => setMostrarModalEdicao(false)}
+          carregando={carregando}
+        />
+      )}
     </div>
   );
 }

@@ -5,9 +5,10 @@
  * Oferece botões rápidos e seleção customizada de datas
  */
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { PeriodoComparacao, TipoPeriodo } from '../../types/comparativo';
 import { TIPOS_PERIODO } from '../../types/comparativo';
+import ModalEditarPeriodos from './ModalEditarPeriodos';
 
 // ============================================
 // INTERFACES
@@ -41,6 +42,15 @@ export default function SeletorPeriodos({
   const [dataFimB, setDataFimB] = useState('');
   const [labelA, setLabelA] = useState('');
   const [labelB, setLabelB] = useState('');
+
+  // Estado para controlar modal de edição
+  const [mostrarModalEdicao, setMostrarModalEdicao] = useState(false);
+
+  // Refs para os inputs de data
+  const refDataInicioA = useRef<HTMLInputElement>(null);
+  const refDataFimA = useRef<HTMLInputElement>(null);
+  const refDataInicioB = useRef<HTMLInputElement>(null);
+  const refDataFimB = useRef<HTMLInputElement>(null);
 
   // ============================================
   // FUNÇÕES AUXILIARES DE DATA
@@ -262,7 +272,7 @@ export default function SeletorPeriodos({
               : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
           }`}
         >
-          📅 Período Customizado
+          📅 Período Personalizado
         </button>
       </div>
 
@@ -331,7 +341,7 @@ export default function SeletorPeriodos({
               className="p-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 text-left transition-all hover:border-blue-400 dark:hover:border-blue-600"
             >
               <div className="font-semibold text-gray-900 dark:text-white mb-1">
-                🎯 Período Customizado
+                🎯 Período Personalizado
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
                 Defina datas específicas para comparar
@@ -356,24 +366,50 @@ export default function SeletorPeriodos({
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Data Inicial
                 </label>
-                <input
-                  type="date"
-                  value={dataInicioA}
-                  onChange={(e) => setDataInicioA(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+                <div className="relative cursor-pointer" onClick={() => refDataInicioA.current?.showPicker()}>
+                  <input
+                    ref={refDataInicioA}
+                    type="date"
+                    value={dataInicioA}
+                    onChange={(e) => setDataInicioA(e.target.value)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      refDataInicioA.current?.showPicker();
+                    }}
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                    style={{ colorScheme: 'dark' }}
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                </div>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Data Final
                 </label>
-                <input
-                  type="date"
-                  value={dataFimA}
-                  onChange={(e) => setDataFimA(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+                <div className="relative cursor-pointer" onClick={() => refDataFimA.current?.showPicker()}>
+                  <input
+                    ref={refDataFimA}
+                    type="date"
+                    value={dataFimA}
+                    onChange={(e) => setDataFimA(e.target.value)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      refDataFimA.current?.showPicker();
+                    }}
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                    style={{ colorScheme: 'dark' }}
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -409,24 +445,50 @@ export default function SeletorPeriodos({
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Data Inicial
                 </label>
-                <input
-                  type="date"
-                  value={dataInicioB}
-                  onChange={(e) => setDataInicioB(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                />
+                <div className="relative cursor-pointer" onClick={() => refDataInicioB.current?.showPicker()}>
+                  <input
+                    ref={refDataInicioB}
+                    type="date"
+                    value={dataInicioB}
+                    onChange={(e) => setDataInicioB(e.target.value)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      refDataInicioB.current?.showPicker();
+                    }}
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer"
+                    style={{ colorScheme: 'dark' }}
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                </div>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Data Final
                 </label>
-                <input
-                  type="date"
-                  value={dataFimB}
-                  onChange={(e) => setDataFimB(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                />
+                <div className="relative cursor-pointer" onClick={() => refDataFimB.current?.showPicker()}>
+                  <input
+                    ref={refDataFimB}
+                    type="date"
+                    value={dataFimB}
+                    onChange={(e) => setDataFimB(e.target.value)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      refDataFimB.current?.showPicker();
+                    }}
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent cursor-pointer"
+                    style={{ colorScheme: 'dark' }}
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -456,32 +518,55 @@ export default function SeletorPeriodos({
         </div>
       )}
 
-      {/* Preview dos Períodos Selecionados */}
-      {periodosAtuais && (
-        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-          <h3 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-            ✅ Períodos Selecionados
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
-            <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg">
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Período A</p>
-              <p className="font-bold text-gray-900 dark:text-white">{periodosAtuais.periodoA.label}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                {formatarDataInput(periodosAtuais.periodoA.inicio)} até {formatarDataInput(periodosAtuais.periodoA.fim)}
-              </p>
-            </div>
-            
-            <div className="text-center text-2xl font-bold text-gray-400">VS</div>
-            
-            <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg">
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Período B</p>
-              <p className="font-bold text-gray-900 dark:text-white">{periodosAtuais.periodoB.label}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                {formatarDataInput(periodosAtuais.periodoB.inicio)} até {formatarDataInput(periodosAtuais.periodoB.fim)}
-              </p>
-            </div>
-          </div>
-        </div>
+{/* Preview dos Períodos Selecionados */}
+{periodosAtuais && (
+  <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+    <div className="flex items-center justify-between mb-3">
+      <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+        ✅ Períodos Selecionados
+      </h3>
+      <button
+        onClick={() => setMostrarModalEdicao(true)}
+        className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+        </svg>
+        Editar
+      </button>
+    </div>
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+      <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg">
+        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Período A</p>
+        <p className="font-bold text-gray-900 dark:text-white">{periodosAtuais.periodoA.label}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+          {formatarDataInput(periodosAtuais.periodoA.inicio)} até {formatarDataInput(periodosAtuais.periodoA.fim)}
+        </p>
+      </div>
+      
+      <div className="text-center text-2xl font-bold text-gray-400">VS</div>
+      
+      <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg">
+        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Período B</p>
+        <p className="font-bold text-gray-900 dark:text-white">{periodosAtuais.periodoB.label}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+          {formatarDataInput(periodosAtuais.periodoB.inicio)} até {formatarDataInput(periodosAtuais.periodoB.fim)}
+        </p>
+      </div>
+    </div>
+  </div>
+)}
+
+      {/* Modal de Edição */}
+      {mostrarModalEdicao && periodosAtuais && (
+        <ModalEditarPeriodos
+          periodosAtuais={periodosAtuais}
+          onSalvar={(novosPeriodos) => {
+            onPeriodosSelecionados(novosPeriodos);
+            setMostrarModalEdicao(false);
+          }}
+          onFechar={() => setMostrarModalEdicao(false)}
+        />
       )}
     </div>
   );

@@ -39,19 +39,28 @@ export function useMetricasGlobais(
       setIsLoading(true);
       setError(null);
 
-      // Datas para filtros
-      const dataFimMes = mes === 12 
-        ? `${ano + 1}-01-01` 
-        : `${ano}-${String(mes + 1).padStart(2, '0')}-01`;
+      // Datas para filtros - Formato ISO
+      const mesFormatado = String(mes).padStart(2, '0');
+      const mesInicio = `${ano}-${mesFormatado}-01`;
 
+      // Calcular último dia do mês
+      const ultimoDiaMes = new Date(ano, mes, 0).getDate();
+      const mesFim = `${ano}-${mesFormatado}-${String(ultimoDiaMes).padStart(2, '0')}`;
 
-
+      // Calcular mês anterior
+      const mesAnterior = mes === 1 ? 12 : mes - 1;
+      const anoAnterior = mes === 1 ? ano - 1 : ano;
+      const mesAnteriorFormatado = String(mesAnterior).padStart(2, '0');
+      const mesAnteriorInicio = `${anoAnterior}-${mesAnteriorFormatado}-01`;
+      const ultimoDiaMesAnterior = new Date(anoAnterior, mesAnterior, 0).getDate();
+      const mesAnteriorFim = `${anoAnterior}-${mesAnteriorFormatado}-${String(ultimoDiaMesAnterior).padStart(2, '0')}`;
 
       // 1. Buscar vendas do mês atual
       const { data: vendasMes, error: vendasMesError } = await supabase
         .from('vendas')
         .select('total, cdCli, NomeCli, CIDADE, "Descr. Produto", "Cód. Referência", MARCA')
-        .like('"Data de Emissao da NF"', `%/${String(mes).padStart(2, '0')}/${ano}`);
+        .gte('"Data de Emissao da NF"', mesInicio)
+        .lte('"Data de Emissao da NF"', mesFim);
 
       if (vendasMesError) throw vendasMesError;
 
@@ -59,7 +68,8 @@ export function useMetricasGlobais(
       const { data: vendasMesAnterior, error: vendasMesAnteriorError } = await supabase
         .from('vendas')
         .select('total, cdCli')
-        .like('"Data de Emissao da NF"', `%/${String(mes).padStart(2, '0')}/${ano}`);
+        .gte('"Data de Emissao da NF"', mesAnteriorInicio)
+        .lte('"Data de Emissao da NF"', mesAnteriorFim);
 
       if (vendasMesAnteriorError) throw vendasMesAnteriorError;
 
@@ -85,7 +95,7 @@ export function useMetricasGlobais(
         .from('vendas')
         .select('cdCli')
         .gte('"Data de Emissao da NF"', dataInicioSeisMeses)
-        .lt('"Data de Emissao da NF"', dataFimMes);
+        .lte('"Data de Emissao da NF"', mesFim);
 
       if (vendasSeisError) throw vendasSeisError;
 

@@ -46,9 +46,9 @@ export function DashboardObservador() {
   };
 
   // Hook de auto-refresh (30 minutos)
-  const { 
-    ultimaAtualizacao, 
-    contadorRefresh 
+  const {
+    ultimaAtualizacao,
+    contadorRefresh
   } = useAutoRefresh(1800000); // 30 min em ms
 
   // Buscar dados dos vendedores
@@ -80,7 +80,8 @@ export function DashboardObservador() {
 
   // Calcular número de slides (vendedores podem ter múltiplas páginas)
   const vendedoresPorPagina = 6;
-  const paginasVendedores = Math.ceil(vendedores.length / vendedoresPorPagina);
+  // Garantir pelo menos 1 página de vendedores, mesmo que vazia
+  const paginasVendedores = Math.max(1, Math.ceil(vendedores.length / vendedoresPorPagina));
   const totalSlides = paginasVendedores + 2; // +2 para métricas e marcas (regional desabilitado)
 
   // Hook de slideshow

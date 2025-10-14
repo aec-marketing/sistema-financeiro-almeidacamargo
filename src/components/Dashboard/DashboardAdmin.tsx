@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useUserAccess } from '../../hooks/useUserAccess'
 import { calcularTotalVenda } from '../../utils/calcular-total'
-import { 
+import { formatarDataISO } from '../../utils/formatters'
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts'
@@ -105,7 +106,18 @@ export default function DashboardAdmin() {
       'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
       'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
     ]
-    const [, mes] = data.split('/')
+
+    let mes: string
+    if (data.includes('/')) {
+      const partes = data.split('/')
+      mes = partes[1] // Formato DD/MM/YYYY
+    } else if (data.includes('-')) {
+      const partes = data.split('-')
+      mes = partes[1] // Formato YYYY-MM-DD
+    } else {
+      return 'N/A'
+    }
+
     return meses[parseInt(mes) - 1] || 'N/A'
   }
 
@@ -213,7 +225,20 @@ export default function DashboardAdmin() {
           const vendasMesAtual = vendas.filter(venda => {
             const data = venda['Data de Emissao da NF']
             if (!data) return false
-            const [, mes, ano] = data.split('/')
+
+            let mes: string, ano: string
+            if (data.includes('/')) {
+              const partes = data.split('/')
+              mes = partes[1]
+              ano = partes[2]
+            } else if (data.includes('-')) {
+              const partes = data.split('-')
+              mes = partes[1]
+              ano = partes[0]
+            } else {
+              return false
+            }
+
             return mes === mesAtual && ano === String(anoAtual)
           })
 
@@ -232,7 +257,20 @@ export default function DashboardAdmin() {
           const vendasMesAnterior = vendas.filter(venda => {
             const data = venda['Data de Emissao da NF']
             if (!data) return false
-            const [, mes, ano] = data.split('/')
+
+            let mes: string, ano: string
+            if (data.includes('/')) {
+              const partes = data.split('/')
+              mes = partes[1]
+              ano = partes[2]
+            } else if (data.includes('-')) {
+              const partes = data.split('-')
+              mes = partes[1]
+              ano = partes[0]
+            } else {
+              return false
+            }
+
             return mes === mesAnterior && ano === String(anoAnterior)
           })
 
@@ -273,7 +311,20 @@ export default function DashboardAdmin() {
           vendas.forEach(venda => {
             const data = venda['Data de Emissao da NF']
             if (data) {
-              const [, mes, ano] = data.split('/')
+              let mes: string, ano: string
+
+              if (data.includes('/')) {
+                const partes = data.split('/')
+                mes = partes[1]
+                ano = partes[2]
+              } else if (data.includes('-')) {
+                const partes = data.split('-')
+                mes = partes[1]
+                ano = partes[0]
+              } else {
+                return
+              }
+
               if (mes && ano) {
                 const mesAno = `${mes}/${ano}`
                 const faturamento = calcularTotalVenda(
@@ -281,7 +332,7 @@ export default function DashboardAdmin() {
                   venda.Quantidade,
                   venda['Preço Unitário']
                 )
-                
+
                 if (faturamentoPorMes.has(mesAno)) {
                   const atual = faturamentoPorMes.get(mesAno)!
                   faturamentoPorMes.set(mesAno, {
@@ -351,15 +402,22 @@ export default function DashboardAdmin() {
           setTopMarcas(topMarcasList)
 
           // Métricas de performance
-          const hoje_str = hoje.toLocaleDateString('pt-BR')
+          const hoje_str = formatarDataISO(hoje)
           const vendasHoje = vendas.filter(v => v['Data de Emissao da NF'] === hoje_str).length
 
           const semanaAtras = new Date(hoje.getTime() - (7 * 24 * 60 * 60 * 1000))
           const vendasSemana = vendas.filter(venda => {
             const data = venda['Data de Emissao da NF']
             if (!data) return false
-            const [dia, mes, ano] = data.split('/')
-            const dataVenda = new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia))
+
+            // Converter data para ISO se estiver em formato brasileiro
+            let dataISO = data
+            if (data.includes('/')) {
+              const [dia, mes, ano] = data.split('/')
+              dataISO = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`
+            }
+
+            const dataVenda = new Date(dataISO)
             return dataVenda >= semanaAtras
           }).length
 

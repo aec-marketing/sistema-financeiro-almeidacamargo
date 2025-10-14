@@ -136,10 +136,21 @@ const VendedorDashboard: React.FC = () => {
   const formatarData = (data: string): string => {
     try {
       if (!data) return 'Data inválida'
-      // Formato esperado: DD/MM/YYYY
-      const [dia, mes, ano] = data.split('/')
-      if (!dia || !mes || !ano) return data
-      return `${dia}/${mes}/${ano}`
+
+      // Se está em formato ISO (YYYY-MM-DD), converter para brasileiro
+      if (data.includes('-') && data.length === 10) {
+        const [ano, mes, dia] = data.split('-')
+        return `${dia}/${mes}/${ano}`
+      }
+
+      // Se já está no formato DD/MM/YYYY, retornar como está
+      if (data.includes('/')) {
+        const [dia, mes, ano] = data.split('/')
+        if (!dia || !mes || !ano) return data
+        return `${dia}/${mes}/${ano}`
+      }
+
+      return data
     } catch {
       return data
     }
@@ -228,12 +239,14 @@ const VendedorDashboard: React.FC = () => {
             if (!data) return false
 
             let mes, ano
+
+            // Converter para formato ISO se necessário
             if (data.includes('/')) {
-              const [, mesStr, anoStr] = data.split('/')
-              mes = mesStr
+              const [dia, mesStr, anoStr] = data.split('/')
+              mes = mesStr.padStart(2, '0')
               ano = anoStr
             } else if (data.includes('-')) {
-              const [anoStr, mesStr] = data.split('-')
+              const [anoStr, mesStr, dia] = data.split('-')
               mes = mesStr
               ano = anoStr
             } else {

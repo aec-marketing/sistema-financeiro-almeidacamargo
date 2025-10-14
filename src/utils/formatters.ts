@@ -4,6 +4,42 @@
  */
 
 /**
+ * Formatar data para ISO (YYYY-MM-DD)
+ */
+export function formatarDataISO(data: Date | string): string {
+  if (!data) return ''
+
+  try {
+    let dataObj: Date
+
+    if (typeof data === 'string') {
+      // Se já está em formato ISO
+      if (/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+        return data
+      }
+
+      // Se está em formato brasileiro DD/MM/YYYY
+      if (data.includes('/')) {
+        const [dia, mes, ano] = data.split('/')
+        dataObj = new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia))
+      } else {
+        dataObj = new Date(data)
+      }
+    } else {
+      dataObj = data
+    }
+
+    const ano = dataObj.getFullYear()
+    const mes = String(dataObj.getMonth() + 1).padStart(2, '0')
+    const dia = String(dataObj.getDate()).padStart(2, '0')
+
+    return `${ano}-${mes}-${dia}`
+  } catch {
+    return ''
+  }
+}
+
+/**
  * Formatar data brasileira (DD/MM/YYYY)
  */
 export function formatarData(data: string | Date | null | undefined): string {

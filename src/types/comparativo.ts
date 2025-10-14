@@ -16,7 +16,7 @@ export const TIPOS_PERIODO = {
   mom: { label: 'Mês vs Mês Anterior', descricao: 'Compara mês atual com o mês anterior' },
   yoy: { label: 'Ano vs Ano Anterior', descricao: 'Compara mesmo período do ano passado' },
   qoq: { label: 'Trimestre vs Trimestre Anterior', descricao: 'Compara trimestre atual com anterior' },
-  custom: { label: 'Período Customizado', descricao: 'Defina datas específicas para comparar' }
+  custom: { label: 'Período Personalizado', descricao: 'Defina datas específicas para comparar' }
 } as const;
 
 // ============================================

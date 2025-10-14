@@ -18,6 +18,7 @@ interface ControlesVisualizacaoProps {
   metrica: MetricaVisualizada;
   onAgrupamentoChange: (agrupamento: AgrupamentoPor) => void;
   onMetricaChange: (metrica: MetricaVisualizada) => void;
+  isVendedor?: boolean;
 }
 
 // ============================================
@@ -53,12 +54,18 @@ export default function ControlesVisualizacao({
   agrupamento,
   metrica,
   onAgrupamentoChange,
-  onMetricaChange
+  onMetricaChange,
+  isVendedor = false
 }: ControlesVisualizacaoProps) {
+
+  // Agrupamentos permitidos para vendedor
+  const agrupamentosPermitidos: AgrupamentoPor[] = isVendedor
+    ? ['marca', 'produto', 'cliente', 'cidade'] // SEM 'vendedor'
+    : ['marca', 'produto', 'vendedor', 'cliente', 'cidade']; // TODOS
 
   return (
     <div className="space-y-6">
-      
+
       {/* Seção: Agrupar Por */}
       <div>
         <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-3">
@@ -69,40 +76,42 @@ export default function ControlesVisualizacao({
         </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {(Object.keys(AGRUPAMENTOS) as AgrupamentoPor[]).map(key => {
-            const grupo = AGRUPAMENTOS[key];
-            const isSelected = agrupamento === key;
+          {(Object.keys(AGRUPAMENTOS) as AgrupamentoPor[])
+            .filter(key => agrupamentosPermitidos.includes(key))
+            .map(key => {
+              const grupo = AGRUPAMENTOS[key];
+              const isSelected = agrupamento === key;
 
-            return (
-              <button
-                key={key}
-                onClick={() => onAgrupamentoChange(key)}
-                className={`p-4 rounded-lg border-2 text-left transition-all ${
-                  isSelected
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-sm'
-                }`}
-              >
-                {/* Ícone */}
-                <div className="text-3xl mb-2">{grupo.icone}</div>
-                
-                {/* Label */}
-                <div className="font-medium text-gray-900 dark:text-white text-sm">
-                  {grupo.label}
-                </div>
+              return (
+                <button
+                  key={key}
+                  onClick={() => onAgrupamentoChange(key)}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    isSelected
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-md'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-sm'
+                  }`}
+                >
+                  {/* Ícone */}
+                  <div className="text-3xl mb-2">{grupo.icone}</div>
 
-                {/* Indicador de seleção */}
-                {isSelected && (
-                  <div className="mt-2 flex items-center gap-1 text-blue-600 dark:text-blue-400">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-xs font-medium">Selecionado</span>
+                  {/* Label */}
+                  <div className="font-medium text-gray-900 dark:text-white text-sm">
+                    {grupo.label}
                   </div>
-                )}
-              </button>
-            );
-          })}
+
+                  {/* Indicador de seleção */}
+                  {isSelected && (
+                    <div className="mt-2 flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-xs font-medium">Selecionado</span>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
         </div>
       </div>
 
