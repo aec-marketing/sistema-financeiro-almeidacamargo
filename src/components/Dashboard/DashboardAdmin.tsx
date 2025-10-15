@@ -4,11 +4,12 @@ import { supabase } from '../../lib/supabase'
 import { useUserAccess } from '../../hooks/useUserAccess'
 import { calcularTotalVenda } from '../../utils/calcular-total'
 import { formatarDataISO } from '../../utils/formatters'
+import { cache, CACHE_KEYS, CACHE_EXPIRATION } from '../../utils/cache'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts'
-  
+
 import {
   TrendingUp, DollarSign, ShoppingCart, Users, Calendar,
   Package, AlertCircle, Zap, BarChart3, ShoppingBag,
@@ -92,6 +93,8 @@ export default function DashboardAdmin() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [loadingMessage, setLoadingMessage] = useState('')
+  const [loadingProgress, setLoadingProgress] = useState(0)
 
   // Funções utilitárias
   const formatarMoeda = (valor: number): string => {
@@ -166,43 +169,91 @@ export default function DashboardAdmin() {
     return null
   }
 
+  // Função para carregar dados com paginação (similar ao RelatorioPage)
+  async function fetchAllVendas(
+    user: { role?: string; cd_representante?: number }
+  ): Promise<VendaRecente[]> {
+    const BATCH_SIZE = 1000
+    let allData: VendaRecente[] = []
+    let offset = 0
+    let hasMore = true
+
+    setLoadingMessage('Carregando vendas...')
+
+    while (hasMore) {
+      let query = supabase
+        .from('vendas')
+        .select(`
+          id,
+          "Número da Nota Fiscal",
+          "Data de Emissao da NF",
+          total,
+          "Descr. Produto",
+          NomeCli,
+          CIDADE,
+          MARCA,
+          cdCli,
+          cdRepr,
+          Quantidade,
+          "Preço Unitário"
+        `)
+        .order('id', { ascending: false })
+        .range(offset, offset + BATCH_SIZE - 1)
+
+      // Filtro por representante se for consultor
+      if (user.role === 'consultor_vendas' && user.cd_representante) {
+        query = query.eq('cdRepr', user.cd_representante)
+      }
+
+      const { data, error } = await query
+
+      if (error) throw error
+      if (!data || data.length === 0) {
+        hasMore = false
+        break
+      }
+
+      allData = [...allData, ...data]
+      offset += BATCH_SIZE
+
+      // Atualiza progresso
+      const progress = Math.min((allData.length / 25000) * 100, 95)
+      setLoadingProgress(progress)
+      setLoadingMessage(`Carregando vendas... ${allData.length.toLocaleString('pt-BR')} registros`)
+
+      if (data.length < BATCH_SIZE) {
+        hasMore = false
+      }
+    }
+
+    setLoadingProgress(100)
+    setLoadingMessage(`${allData.length.toLocaleString('pt-BR')} vendas carregadas`)
+
+    return allData
+  }
+
   // Carregar dados do dashboard
   useEffect(() => {
-    if (authLoading || !user) return
+    // Guard clause - aguarda autenticação completa
+    if (!user?.id) {
+      console.log('⏳ Aguardando autenticação...')
+      return
+    }
 
     const carregarDados = async () => {
       try {
         setLoading(true)
         setError(null)
+        setLoadingProgress(0)
 
-        let queryVendas = supabase
-          .from('vendas')
-          .select(`
-            id,
-            "Número da Nota Fiscal",
-            "Data de Emissao da NF",
-            total,
-            "Descr. Produto",
-            NomeCli,
-            CIDADE,
-            MARCA,
-            cdCli,
-            cdRepr,
-            Quantidade,
-            "Preço Unitário"
-          `)
-          .order('id', { ascending: false })
-          .limit(3000)
+        const userId = user.id
 
-        if (user.role === 'consultor_vendas' && user.cd_representante) {
-          queryVendas = queryVendas.eq('cdRepr', user.cd_representante)
-        }
+        console.log('🔄 Iniciando carregamento do dashboard...')
 
-        const { data: vendas, error: vendasError } = await queryVendas
+        // Carregar TODAS as vendas (sem limit)
+        const vendas = await fetchAllVendas(user)
 
-        if (vendasError) {
-          throw vendasError
-        }
+        console.log(`✅ ${vendas.length.toLocaleString('pt-BR')} vendas carregadas`)
 
         if (vendas && vendas.length > 0) {
           // Calcular KPIs principais
@@ -450,19 +501,30 @@ export default function DashboardAdmin() {
 
   if (authLoading || loading) {
     return (
-      <div className="animate-pulse space-y-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-gray-900/50 p-6">
-          <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-2"></div>
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-xl"></div>
-          ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-gray-200 dark:bg-gray-700 h-80 rounded-xl"></div>
-          <div className="bg-gray-200 dark:bg-gray-700 h-80 rounded-xl"></div>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-2xl max-w-md w-full mx-4">
+          <div className="flex flex-col items-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mb-6"></div>
+
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+              Carregando Dashboard
+            </h3>
+
+            <p className="text-gray-600 dark:text-gray-300 mb-6 text-center">
+              {loadingMessage || 'Preparando dados...'}
+            </p>
+
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 mb-2 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${loadingProgress}%` }}
+              />
+            </div>
+
+            <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+              {loadingProgress.toFixed(0)}%
+            </p>
+          </div>
         </div>
       </div>
     )
