@@ -451,7 +451,7 @@ export function detectarTabelaDestino(
   return { tabela, confianca, scores };
 }
 
-// Verifica se há registros duplicados no CSV vs banco
+// Verifica se há registros duplicados comparando com o banco de dados
 export async function detectarDuplicatas(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   dadosTransformados: any[],
@@ -465,109 +465,127 @@ export async function detectarDuplicatas(
 }> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const duplicatas: Array<{ linha: number; motivo: string; registro: any }> = [];
-  
+
   if (tabelaDestino === 'vendas') {
-    // Verifica por Número da NF
+    // Verifica duplicatas no BANCO DE DADOS
     const notasFiscais = dadosTransformados
       .map((d, index) => ({ nf: d['Número da Nota Fiscal'], index }))
       .filter(item => item.nf);
-    
+
     if (notasFiscais.length > 0) {
-      const nfsParaBuscar = notasFiscais.map(item => item.nf);
-      
-      const { data: existentes, error } = await supabase
-        .from('vendas')
-        .select('"Número da Nota Fiscal"')
-        .in('"Número da Nota Fiscal"', nfsParaBuscar);
-      
-      if (error) {
-        console.error('Erro ao verificar duplicatas:', error);
-        return { duplicatas: [], total: 0 };
-      }
-      
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const nfsExistentes = new Set(existentes?.map((e: any) => String(e['Número da Nota Fiscal'])) || []);
-      
-      notasFiscais.forEach(({ nf, index }) => {
-        if (nf && nfsExistentes.has(String(nf))) {
-          duplicatas.push({
-            linha: index + 1,
-            motivo: `NF ${nf} já existe no banco`,
-            registro: dadosTransformados[index]
+      const nfsParaBuscar = [...new Set(notasFiscais.map(item => String(item.nf).trim()))]; // Remove duplicatas da busca
+
+      try {
+        const { data: existentes, error } = await supabase
+          .from('vendas')
+          .select('"Número da Nota Fiscal"')
+          .in('"Número da Nota Fiscal"', nfsParaBuscar);
+
+        if (error) {
+          console.error('Erro ao verificar duplicatas no banco:', error);
+          console.warn('Continuando sem verificação de duplicatas no banco de dados');
+        } else {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const nfsExistentes = new Set(existentes?.map((e: any) => String(e['Número da Nota Fiscal']).trim()) || []);
+
+          notasFiscais.forEach(({ nf, index }) => {
+            const nfStr = String(nf).trim();
+
+            if (nfStr && nfsExistentes.has(nfStr)) {
+              duplicatas.push({
+                linha: index + 1,
+                motivo: `NF ${nf} já existe no banco de dados`,
+                registro: dadosTransformados[index]
+              });
+            }
           });
         }
-      });
+      } catch (err) {
+        console.error('Erro ao buscar duplicatas:', err);
+      }
     }
   }
-  
+
   else if (tabelaDestino === 'clientes') {
-    // Verifica por CNPJ
+    // Verifica duplicatas no BANCO DE DADOS
     const cnpjs = dadosTransformados
       .map((d, index) => ({ cnpj: d.CNPJ, index }))
       .filter(item => item.cnpj);
-    
+
     if (cnpjs.length > 0) {
-      const cnpjsParaBuscar = cnpjs.map(item => item.cnpj);
-      
-      const { data: existentes, error } = await supabase
-        .from('clientes')
-        .select('CNPJ')
-        .in('CNPJ', cnpjsParaBuscar);
-      
-      if (error) {
-        console.error('Erro ao verificar duplicatas:', error);
-        return { duplicatas: [], total: 0 };
-      }
-      
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cnpjsExistentes = new Set(existentes?.map((e: any) => String(e.CNPJ)) || []);
-      
-      cnpjs.forEach(({ cnpj, index }) => {
-        if (cnpj && cnpjsExistentes.has(String(cnpj))) {
-          duplicatas.push({
-            linha: index + 1,
-            motivo: `CNPJ ${cnpj} já existe no banco`,
-            registro: dadosTransformados[index]
+      const cnpjsParaBuscar = [...new Set(cnpjs.map(item => String(item.cnpj).trim()))];
+
+      try {
+        const { data: existentes, error } = await supabase
+          .from('clientes')
+          .select('CNPJ')
+          .in('CNPJ', cnpjsParaBuscar);
+
+        if (error) {
+          console.error('Erro ao verificar duplicatas no banco:', error);
+          console.warn('Continuando sem verificação de duplicatas no banco de dados');
+        } else {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const cnpjsExistentes = new Set(existentes?.map((e: any) => String(e.CNPJ).trim()) || []);
+
+          cnpjs.forEach(({ cnpj, index }) => {
+            const cnpjStr = String(cnpj).trim();
+
+            if (cnpjStr && cnpjsExistentes.has(cnpjStr)) {
+              duplicatas.push({
+                linha: index + 1,
+                motivo: `CNPJ ${cnpj} já existe no banco de dados`,
+                registro: dadosTransformados[index]
+              });
+            }
           });
         }
-      });
+      } catch (err) {
+        console.error('Erro ao buscar duplicatas:', err);
+      }
     }
   }
-  
+
   else if (tabelaDestino === 'itens') {
-    // Verifica por Código de Referência
+    // Verifica duplicatas no BANCO DE DADOS
     const codigos = dadosTransformados
       .map((d, index) => ({ codigo: d['Cód. Referência'], index }))
       .filter(item => item.codigo);
-    
+
     if (codigos.length > 0) {
-      const codigosParaBuscar = codigos.map(item => item.codigo);
-      
-      const { data: existentes, error } = await supabase
-        .from('itens')
-        .select('"Cód. Referência"')
-        .in('"Cód. Referência"', codigosParaBuscar);
-      
-      if (error) {
-        console.error('Erro ao verificar duplicatas:', error);
-        return { duplicatas: [], total: 0 };
-      }
-      
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const codigosExistentes = new Set(existentes?.map((e: any) => String(e['Cód. Referência'])) || []);
-      
-      codigos.forEach(({ codigo, index }) => {
-        if (codigo && codigosExistentes.has(String(codigo))) {
-          duplicatas.push({
-            linha: index + 1,
-            motivo: `Produto ${codigo} já existe no banco`,
-            registro: dadosTransformados[index]
+      const codigosParaBuscar = [...new Set(codigos.map(item => String(item.codigo).trim()))];
+
+      try {
+        const { data: existentes, error } = await supabase
+          .from('itens')
+          .select('"Cód. Referência"')
+          .in('"Cód. Referência"', codigosParaBuscar);
+
+        if (error) {
+          console.error('Erro ao verificar duplicatas no banco:', error);
+          console.warn('Continuando sem verificação de duplicatas no banco de dados');
+        } else {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const codigosExistentes = new Set(existentes?.map((e: any) => String(e['Cód. Referência']).trim()) || []);
+
+          codigos.forEach(({ codigo, index }) => {
+            const codigoStr = String(codigo).trim();
+
+            if (codigoStr && codigosExistentes.has(codigoStr)) {
+              duplicatas.push({
+                linha: index + 1,
+                motivo: `Produto com código ${codigo} já existe no banco de dados`,
+                registro: dadosTransformados[index]
+              });
+            }
           });
         }
-      });
+      } catch (err) {
+        console.error('Erro ao buscar duplicatas:', err);
+      }
     }
   }
-  
+
   return {
     duplicatas,
     total: duplicatas.length

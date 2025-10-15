@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { X, Plus, Search, Download, Save, BarChart3, Table, Filter } from 'lucide-react';
+import { X, Plus, Search, Download, Save, BarChart3, Table, Filter, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { gerarRelatorioPDF } from '../utils/exportPDF';
 import html2canvas from 'html2canvas';
 import { useUserAccess } from '../hooks/useUserAccess';
+import { cache, CACHE_KEYS, CACHE_EXPIRATION } from '../utils/cache';
 
 // Extensão da interface Window para propriedades customizadas
 declare global {
@@ -216,13 +217,18 @@ export default function RelatoriosPage() {
   // Estados de controle
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState('');
+  const [loadingProgress, setLoadingProgress] = useState(0);
+
 // Estados para paginação
 const [paginaAtual, setPaginaAtual] = useState(1);
 const [itensPorPagina] = useState(50); // 50 itens por página
+
 // Estados para gráficos
 const [mostrarModalGrafico, setMostrarModalGrafico] = useState(false);
 const [graficos, setGraficos] = useState<Grafico[]>([]);
 const [proximoId, setProximoId] = useState(1);
+
 // Estados para configurações avançadas
 const [mostrarModalConfig, setMostrarModalConfig] = useState(false);
 const [configTemporaria, setConfigTemporaria] = useState<GraficoConfig | null>(null);
@@ -271,145 +277,238 @@ const converterValor = useCallback((valor: string | number | null | undefined): 
     }).format(valor);
   }, []);
 
-  // Carregar dados iniciais do Supabase
+  // Função para limpar cache e recarregar
+  const limparCacheERecarregar = useCallback(() => {
+    cache.clearAll();
+    window.location.reload();
+  }, []);
+
+  // Carregar todos os dados com UX aprimorada + CACHE
   useEffect(() => {
-const carregarDados = async () => {
-  try {
-    setLoading(true);
-    setError(null);
+    // Só carrega se tiver usuário autenticado
+    if (!user?.id) {
+      console.log('⏳ Aguardando autenticação...');
+      return;
+    }
 
-    console.log('🔄 Iniciando carregamento com paginação...');
+    const carregarDados = async (forceRefresh = false) => {
+      try {
+        setLoading(true);
+        setError(null);
+        setLoadingProgress(0);
+        setLoadingMessage('Verificando cache...');
 
-    // Helper function for paginated fetching
-    const fetchWithPagination = async <T,>(table: string, columns: string, additionalFilters?: Record<string, unknown>) => {
-      let allData: T[] = [];
-      let start = 0;
-      const limit = 1000; // Supabase's default limit per page
-      let hasMore = true;
+        const userId = user.id;
 
-      while (hasMore) {
-        let query = supabase
-          .from(table)
-          .select(columns)
-          .range(start, start + limit - 1);
+        console.log('🔄 Iniciando carregamento de dados...', { userId, role: user.role });
 
-        // Apply additional filters if provided
-        if (additionalFilters) {
-          Object.entries(additionalFilters).forEach(([key, value]) => {
-            if (value !== undefined && value !== null) {
-              query = query.eq(key, value);
-            }
-          });
-        }
+        // Limpa caches expirados no início
+        cache.clearExpiredCaches();
 
-        const { data, error } = await query;
+        // Verificar se há dados em cache (apenas clientes e itens)
+        // NOTA: Vendas não são cacheadas pois são muito grandes
+        if (!forceRefresh) {
+          const clientesCache = cache.get<Cliente[]>(CACHE_KEYS.CLIENTES, userId);
+          const itensCache = cache.get<Item[]>(CACHE_KEYS.ITENS, userId);
 
-        if (error) {
-          console.error(`Erro ao buscar ${table}:`, error);
-          throw error;
-        }
+          // Se clientes E itens estão em cache, usa cache parcial
+          if (clientesCache && itensCache) {
+            console.log('✅ Clientes e itens recuperados do cache!');
+            setLoadingMessage('Carregando do cache...');
+            setLoadingProgress(40);
 
-        if (data && data.length > 0) {
-          allData = [...allData, ...(data as T[])];
-          start += limit;
+            setDadosClientes(clientesCache);
+            setDadosItens(itensCache);
 
-          // If we got less than the limit, we've reached the end
-          if (data.length < limit) {
-            hasMore = false;
+            console.log('📡 Carregando apenas vendas do banco...');
+            // Continua para carregar vendas do banco
           }
-        } else {
-          hasMore = false;
         }
+
+        // Helper para carregar todas as páginas com paginação
+        const fetchAll = async <T,>(table: string, columns: string, additionalFilters?: Record<string, unknown>) => {
+          let allData: T[] = [];
+          let start = 0;
+          const limit = 1000;
+          let hasMoreData = true;
+
+          while (hasMoreData) {
+            let query = supabase
+              .from(table)
+              .select(columns)
+              .range(start, start + limit - 1);
+
+            // Aplicar filtros adicionais se fornecidos
+            if (additionalFilters) {
+              Object.entries(additionalFilters).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                  query = query.eq(key, value);
+                }
+              });
+            }
+
+            const { data, error} = await query;
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+              allData = [...allData, ...(data as T[])];
+              start += limit;
+              if (data.length < limit) hasMoreData = false;
+            } else {
+              hasMoreData = false;
+            }
+          }
+
+          return allData;
+        };
+
+        // Etapa 1: Carregar clientes (20% do progresso) - SE NÃO ESTIVER EM CACHE
+        let clientes = dadosClientes;
+        if (clientes.length === 0) {
+          setLoadingMessage('Carregando dados de clientes...');
+          setLoadingProgress(10);
+
+          clientes = await fetchAll<Cliente>('clientes', `
+            id,
+            "Nome",
+            "Município",
+            "Sigla Estado",
+            "CNPJ",
+            "Entidade"
+          `);
+
+          // Salva clientes no cache
+          cache.set(CACHE_KEYS.CLIENTES, clientes, {
+            expiresIn: CACHE_EXPIRATION.CLIENTES,
+            userId
+          });
+
+          setDadosClientes(clientes);
+          console.log(`✅ ${clientes.length} clientes carregados e salvos em cache`);
+        } else {
+          console.log(`✅ ${clientes.length} clientes já estavam em cache`);
+        }
+        setLoadingProgress(20);
+
+        // Etapa 2: Carregar itens (40% do progresso) - SE NÃO ESTIVER EM CACHE
+        let itens = dadosItens;
+        if (itens.length === 0) {
+          setLoadingMessage('Carregando catálogo de produtos...');
+          setLoadingProgress(30);
+
+          itens = await fetchAll<Item>('itens', `
+            id,
+            "Descr. Marca Produto",
+            "Descr. Grupo Produto",
+            "Desc. Subgrupo de Produto",
+            "Cód. Referência",
+            "Cód. do Produto",
+            "Descr. Produto"
+          `);
+
+          // Salva itens no cache
+          cache.set(CACHE_KEYS.ITENS, itens, {
+            expiresIn: CACHE_EXPIRATION.ITENS,
+            userId
+          });
+
+          setDadosItens(itens);
+          console.log(`✅ ${itens.length} itens carregados e salvos em cache`);
+        } else {
+          console.log(`✅ ${itens.length} itens já estavam em cache`);
+        }
+        setLoadingProgress(40);
+
+        // Etapa 3: Carregar vendas (80% do progresso)
+        setLoadingMessage('Carregando histórico de vendas...');
+        setLoadingProgress(50);
+
+        // Garante que o ID do representante esteja no formato correto
+        const repId = user?.cd_representante
+          ? (typeof user.cd_representante === 'string'
+              ? parseFloat(user.cd_representante)
+              : user.cd_representante)
+          : null;
+
+        const vendas = await fetchAll<Venda>('vendas', `
+          id,
+          "Data de Emissao da NF",
+          total,
+          Quantidade,
+          "Preço Unitário",
+          MARCA,
+          GRUPO,
+          CIDADE,
+          NomeCli,
+          NomeRepr,
+          cdCli,
+          "Descr. Produto",
+          "Cód. Referência",
+          cdRepr
+        `,
+        // Aplicar filtro por representante se for consultor de vendas
+        user?.role === 'consultor_vendas' && repId
+          ? { cdRepr: repId }
+          : undefined
+        );
+
+        setLoadingProgress(70);
+        console.log(`✅ ${vendas.length} vendas carregadas (filtradas por usuário)`);
+
+        // Etapa 4: Enriquecer vendas com dados de itens e clientes (95% do progresso)
+        setLoadingMessage('Processando e enriquecendo dados...');
+        setLoadingProgress(80);
+
+        const vendasEnriquecidas = vendas.map(venda => {
+          const itemCorrespondente = itens.find(item =>
+            item["Cód. Referência"] === venda["Cód. Referência"]
+          );
+
+          const clienteCorrespondente = clientes.find(cliente =>
+            cliente.Nome === venda.NomeCli
+          );
+
+          return {
+            ...venda,
+            MARCA: itemCorrespondente?.["Descr. Marca Produto"] || venda.MARCA || 'Marca não encontrada',
+            GRUPO: itemCorrespondente?.["Descr. Grupo Produto"] || venda.GRUPO,
+            "Descr. Produto": itemCorrespondente?.["Descr. Produto"] || venda["Descr. Produto"],
+            CIDADE: clienteCorrespondente?.Município || venda.CIDADE
+          };
+        });
+
+        setLoadingProgress(90);
+
+        // Etapa 5: Finalizar (100% do progresso)
+        setLoadingMessage('Finalizando...');
+        setLoadingProgress(95);
+
+        const cacheSize = cache.getTotalSize();
+        console.log('✅ Dados carregados, processados e salvos em cache:', {
+          clientes: clientes.length,
+          itens: itens.length,
+          vendas: vendasEnriquecidas.length,
+          cacheSize: `${cacheSize} KB`
+        });
+
+        setDadosVendas(vendasEnriquecidas);
+        setDadosFiltrados(vendasEnriquecidas);
+        setLoadingProgress(100);
+        setLoadingMessage('Concluído!');
+
+      } catch (err) {
+        console.error('❌ Erro ao carregar dados:', err);
+        setError(err instanceof Error ? err.message : 'Erro desconhecido ao carregar dados');
+        setLoadingMessage('Erro ao carregar dados');
+      } finally {
+        setTimeout(() => {
+          setLoading(false);
+          setLoadingMessage('');
+          setLoadingProgress(0);
+        }, 500); // Pequeno delay para mostrar 100%
       }
-
-      console.log(`✅ ${table} carregados:`, allData.length);
-      return allData;
     };
-
-    // Fetch all data with pagination in parallel
-    const [clientes, itens, vendas] = await Promise.all([
-      fetchWithPagination<Cliente>('clientes', `
-        id,
-        "Nome",
-        "Município",
-        "Sigla Estado",
-        "CNPJ",
-        "Entidade"
-      `),
-
-      fetchWithPagination<Item>('itens', `
-        id,
-        "Descr. Marca Produto",
-        "Descr. Grupo Produto",
-        "Desc. Subgrupo de Produto",
-        "Cód. Referência",
-        "Cód. do Produto",
-        "Descr. Produto"
-      `),
-
-      fetchWithPagination<Venda>('vendas', `
-        id,
-        "Data de Emissao da NF",
-        total,
-        Quantidade,
-        "Preço Unitário",
-        MARCA,
-        GRUPO,
-        CIDADE,
-        NomeCli,
-        NomeRepr,
-        cdCli,
-        "Descr. Produto",
-        "Cód. Referência"
-      `, 
-      // Additional filters for vendas based on user role
-      user?.role === 'consultor_vendas' && user?.cd_representante
-        ? { cdRepr: user.cd_representante }
-        : undefined
-      )
-    ]);
-
-    // Enriquecer vendas com dados da tabela itens e clientes
-    const vendasEnriquecidas = vendas.map(venda => {
-      const itemCorrespondente = itens.find(item => 
-        item["Cód. Referência"] === venda["Cód. Referência"]
-      );
-      
-      const clienteCorrespondente = clientes.find(cliente =>
-        cliente.Nome === venda.NomeCli
-      );
-      
-      return {
-        ...venda,
-        // Usar marca do item se disponível, senão usar da venda
-        MARCA: itemCorrespondente?.["Descr. Marca Produto"] || venda.MARCA || 'Marca não encontrada',
-        GRUPO: itemCorrespondente?.["Descr. Grupo Produto"] || venda.GRUPO,
-        "Descr. Produto": itemCorrespondente?.["Descr. Produto"] || venda["Descr. Produto"],
-        // Usar cidade do cliente se disponível, senão usar da venda
-        CIDADE: clienteCorrespondente?.Município || venda.CIDADE
-      };
-    });
-
-    console.log('✅ Dados carregados com sucesso:', {
-      clientes: clientes.length,
-      itens: itens.length,
-      vendas: vendas.length,
-      vendasEnriquecidas: vendasEnriquecidas.length
-    });
-
-    // Definir estados
-    setDadosClientes(clientes);
-    setDadosItens(itens);
-    setDadosVendas(vendasEnriquecidas);
-    setDadosFiltrados(vendasEnriquecidas);
-
-  } catch (err) {
-    console.error('❌ Erro ao carregar dados:', err);
-    setError(err instanceof Error ? err.message : 'Erro desconhecido ao carregar dados');
-  } finally {
-    setLoading(false);
-  }
-};
 
     carregarDados();
   }, [user]);
@@ -1144,10 +1243,47 @@ const resetarPaginacao = () => {
   // Estados de loading e erro
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-300">Carregando dados para relatórios...</p>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-2xl max-w-md w-full mx-4">
+          <div className="flex flex-col items-center">
+            {/* Ícone animado */}
+            <div className="relative mb-6">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <BarChart3 className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+
+            {/* Título */}
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+              Carregando Relatório
+            </h3>
+
+            {/* Mensagem de status */}
+            <p className="text-center text-gray-600 dark:text-gray-300 mb-6 min-h-[24px]">
+              {loadingMessage || 'Preparando...'}
+            </p>
+
+            {/* Barra de progresso */}
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 mb-2 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-400 dark:to-blue-500 h-3 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${loadingProgress}%` }}
+              />
+            </div>
+
+            {/* Percentual */}
+            <p className="text-sm font-medium text-blue-600 dark:text-blue-400 mb-4">
+              {loadingProgress}%
+            </p>
+
+            {/* Mensagem informativa */}
+            <div className="w-full p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+              <p className="text-sm text-gray-700 dark:text-gray-300 text-center">
+                <span className="font-medium">💡 Dica:</span> Este processo pode demorar alguns instantes, mas garante a precisão total dos dados financeiros.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1218,6 +1354,16 @@ const resetarPaginacao = () => {
                 <Download className="w-4 h-4" />
                 <span className="hidden sm:inline">Gerar PDF</span>
                 <span className="sm:hidden">PDF</span>
+              </button>
+
+              <button
+                onClick={limparCacheERecarregar}
+                className="sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-600 dark:bg-gray-700 text-white text-sm font-medium rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+                title="Limpar cache e recarregar dados do banco"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span className="hidden sm:inline">Atualizar Cache</span>
+                <span className="sm:hidden">Atualizar</span>
               </button>
             </div>
           </div>
@@ -1880,6 +2026,7 @@ const resetarPaginacao = () => {
               </button>
             </div>
           </div>
+
 {/* Modal de Configurações Avançadas */}
 {mostrarModalConfig && configTemporaria && (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
