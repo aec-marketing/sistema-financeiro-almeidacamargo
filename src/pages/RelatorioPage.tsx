@@ -6,6 +6,11 @@ import { gerarRelatorioPDF } from '../utils/exportPDF';
 import html2canvas from 'html2canvas';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { cache, CACHE_KEYS, CACHE_EXPIRATION } from '../utils/cache';
+import {
+  normalizarValorMonetario,
+  calcularTotalVenda,
+  formatarMoeda
+} from '../utils/formatacao-monetaria';
 
 // Extensão da interface Window para propriedades customizadas
 declare global {
@@ -174,6 +179,7 @@ interface Filtro {
   campo: string;
   operador: string;
   valor: string;
+  valorFim?: string; // Segundo valor para operador "entre"
   logica: keyof typeof OPERADORES_LOGICOS;
 }
 
@@ -202,6 +208,7 @@ export default function RelatoriosPage() {
     campo: '',
     operador: '',
     valor: '',
+    valorFim: '', // Segundo valor para operador "entre"
     logica: 'AND' as keyof typeof OPERADORES_LOGICOS
   });
   const [visualizacao, setVisualizacao] = useState('tabela');
@@ -254,28 +261,12 @@ const useDebounce = <T,>(value: T, delay: number): T => {
 // Usar debounce nos filtros
 const debouncedFiltros = useDebounce(filtros, 300);
 
-// Função para converter valores brasileiros para número
+// Usando a função de normalização centralizada (mantida para compatibilidade)
 const converterValor = useCallback((valor: string | number | null | undefined): number => {
-  if (!valor) return 0;
-  if (typeof valor === 'number') return valor;
-  
-  // Remove símbolos de moeda e espaços, trata vírgula como decimal
-  const valorLimpo = valor.toString()
-    .replace(/[R$\s]/g, '') // Remove R$ e espaços
-    .replace(/\./g, '') // Remove pontos de milhares
-    .replace(',', '.'); // Converte vírgula para ponto decimal
-  
-  const resultado = parseFloat(valorLimpo) || 0;
-  return resultado;
+  return normalizarValorMonetario(valor);
 }, []);
 
-  // Função para formatar moeda brasileira
-  const formatarMoeda = useCallback((valor: number): string => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(valor);
-  }, []);
+// formatarMoeda agora é importado de formatacao-monetaria.ts
 
   // Função para limpar cache e recarregar
   const limparCacheERecarregar = useCallback(() => {
@@ -563,15 +554,41 @@ const converterValor = useCallback((valor: string | number | null | undefined): 
         case 'diferente':
           return String(valor) !== valorFiltro;
         case 'maior':
+          // Para datas, comparar strings funciona (formato YYYY-MM-DD)
+          // Para valores monetários, usar converterValor
           if (filtro.campo === 'total' || filtro.campo === 'Preço Unitário') {
             return converterValor(String(valor)) > parseFloat(valorFiltro);
           }
-          return parseFloat(String(valor)) > parseFloat(valorFiltro);
+          // Para datas ou números simples
+          return String(valor) > valorFiltro;
         case 'menor':
           if (filtro.campo === 'total' || filtro.campo === 'Preço Unitário') {
             return converterValor(String(valor)) < parseFloat(valorFiltro);
           }
-          return parseFloat(String(valor)) < parseFloat(valorFiltro);
+          return String(valor) < valorFiltro;
+        case 'entre':
+          // Operador "entre" para datas ou números
+          if (!filtro.valorFim) return true; // Se não tiver valorFim, ignora
+
+          if (filtro.campo === 'total' || filtro.campo === 'Preço Unitário') {
+            // Para valores monetários
+            const valorNum = converterValor(String(valor));
+            const valorMin = parseFloat(valorFiltro);
+            const valorMax = parseFloat(filtro.valorFim);
+            return valorNum >= valorMin && valorNum <= valorMax;
+          }
+
+          // Para datas (formato YYYY-MM-DD ou DD/MM/YYYY)
+          const valorStr = String(valor);
+          // Converter data brasileira para comparável se necessário
+          let dataComparavel = valorStr;
+          if (valorStr.includes('/')) {
+            // Formato DD/MM/YYYY -> YYYY-MM-DD
+            const [dia, mes, ano] = valorStr.split('/');
+            dataComparavel = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+          }
+
+          return dataComparavel >= valorFiltro && dataComparavel <= filtro.valorFim;
         default:
           return true;
       }
@@ -622,22 +639,23 @@ const converterValor = useCallback((valor: string | number | null | undefined): 
 
       // Fazer join das tabelas filtradas
       const resultado = resultadoVendas.filter(venda => {
-        // Verificar se cliente está nos resultados filtrados (por nome)
-        const clienteExiste = resultadoClientes.some(cliente => 
-          cliente.Nome === venda.NomeCli
-        );
-        
-        // Como não temos relação direta produto-venda, usar MARCA/GRUPO para filtrar
-        const produtoExiste = filtros.some(f => f.tabela === 'itens') ? 
-          resultadoItens.some(item => 
-            item['Descr. Marca Produto'] === venda.MARCA
-          ) : true;
+        // Só verificar cliente se houver filtro de clientes aplicado
+        const temFiltroCliente = filtros.some(f => f.tabela === 'clientes');
+        const clienteExiste = temFiltroCliente
+          ? resultadoClientes.some(cliente => cliente.Nome === venda.NomeCli)
+          : true; // Se não tem filtro de cliente, aceita todas as vendas
+
+        // Só verificar produto se houver filtro de itens aplicado
+        const temFiltroItem = filtros.some(f => f.tabela === 'itens');
+        const produtoExiste = temFiltroItem
+          ? resultadoItens.some(item => item['Descr. Marca Produto'] === venda.MARCA)
+          : true; // Se não tem filtro de item, aceita todas as vendas
 
         return clienteExiste && produtoExiste;
       });
 
       setDadosFiltrados(resultado);
-      
+
     } catch (err) {
       console.error('Erro ao aplicar filtros:', err);
       setDadosFiltrados(dadosVendas);
@@ -651,19 +669,14 @@ useEffect(() => {
   const metricas = useMemo(() => {
     const dados = dadosFiltrados;
     const faturamentoTotal = dadosFiltrados.reduce((acc, venda) => {
-  // Primeiro tenta usar o campo 'total', senão calcula
-  const totalExistente = converterValor(venda.total);
-  if (totalExistente > 0) {
-    return acc + totalExistente;
-  }
-  
-  // Calcula: preço × quantidade
-  const preco = converterValor(venda["Preço Unitário"]);
-  const qtd = converterValor(venda.Quantidade);
-  const totalCalculado = preco * qtd;
-  
-  return acc + totalCalculado;
-}, 0);
+      // Usa a função corrigida que sempre calcula Quantidade × Preço Unitário
+      const valorVenda = calcularTotalVenda(
+        venda.total,
+        venda.Quantidade,
+        venda["Preço Unitário"]
+      );
+      return acc + valorVenda;
+    }, 0);
     
     return {
       totalVendas: dados.length,
@@ -678,7 +691,11 @@ useEffect(() => {
 
   // Funções de controle dos filtros
   const adicionarFiltro = useCallback(() => {
-    if (novoFiltro.tabela && novoFiltro.campo && novoFiltro.operador && novoFiltro.valor) {
+    // Validação: se for operador "entre", precisa ter valorFim também
+    const precisaValorFim = novoFiltro.operador === 'entre';
+    const valorFimValido = !precisaValorFim || (precisaValorFim && novoFiltro.valorFim);
+
+    if (novoFiltro.tabela && novoFiltro.campo && novoFiltro.operador && novoFiltro.valor && valorFimValido) {
       const filtro: Filtro = {
         ...novoFiltro,
         id: Date.now(),
@@ -690,6 +707,7 @@ useEffect(() => {
         campo: '',
         operador: '',
         valor: '',
+        valorFim: '',
         logica: 'AND'
       });
     }
@@ -869,10 +887,12 @@ const processarDadosGrafico = useCallback((config: GraficoConfig): DadosGrafico[
       };
     }
 
-    // Calcular valor da venda
-    const valorVenda = converterValor(venda.total) > 0
-      ? converterValor(venda.total)
-      : converterValor(venda["Preço Unitário"]) * converterValor(venda.Quantidade);
+    // Calcular valor da venda usando a função corrigida
+    const valorVenda = calcularTotalVenda(
+      venda.total,
+      venda.Quantidade,
+      venda["Preço Unitário"]
+    );
 
     acc[chave].faturamento_total += valorVenda;
     acc[chave].frequencia_vendas += 1;
@@ -1401,7 +1421,12 @@ const resetarPaginacao = () => {
                       <span className="mx-1 text-gray-600 dark:text-gray-300 italic">
                         {getOperatorsForField(filtro.tabela, filtro.campo).find((op: { value: string; label: string }) => op.value === filtro.operador)?.label}
                       </span>
-                      <span className="font-bold text-purple-600 dark:text-purple-400">"{filtro.valor}"</span>
+                      <span className="font-bold text-purple-600 dark:text-purple-400">
+                        "{filtro.valor}"
+                        {filtro.operador === 'entre' && filtro.valorFim && (
+                          <> e "{filtro.valorFim}"</>
+                        )}
+                      </span>
                     </span>
                     <button
                       onClick={() => setFiltroEditando(filtro)}
@@ -1424,7 +1449,8 @@ const resetarPaginacao = () => {
         )}
 
         {/* Adicionar Novo Filtro */}
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border">
+        <div className="flex flex-col gap-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-lg border">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           {filtros.length > 0 && (
             <select
               value={novoFiltro.logica}
@@ -1475,7 +1501,7 @@ const resetarPaginacao = () => {
           </select>
 
           {/* Campo de valor dinâmico */}
-          {novoFiltro.tabela && novoFiltro.campo && 
+          {novoFiltro.tabela && novoFiltro.campo &&
             getFieldConfigSafe(novoFiltro.tabela, novoFiltro.campo).tipo === 'select' ? (
             <select
               value={novoFiltro.valor}
@@ -1488,7 +1514,25 @@ const resetarPaginacao = () => {
                 <option key={valor} value={valor}>{valor}</option>
               ))}
             </select>
+          ) : getFieldConfigSafe(novoFiltro.tabela, novoFiltro.campo).tipo === 'data' ? (
+            // Campo de DATA com calendário (somente o primeiro)
+            <div className="relative">
+              <input
+                type="date"
+                value={novoFiltro.valor}
+                onChange={(e) => setNovoFiltro({...novoFiltro, valor: e.target.value})}
+                className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                style={{ colorScheme: 'dark' }}
+                disabled={!novoFiltro.operador}
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+            </div>
           ) : (
+            // Campo padrão (texto ou número)
             <input
               type={novoFiltro.tabela && novoFiltro.campo && getFieldConfig(novoFiltro.tabela, novoFiltro.campo)?.tipo === 'numero' ? 'number' : 'text'}
               placeholder="Digite o valor..."
@@ -1508,6 +1552,29 @@ const resetarPaginacao = () => {
             Adicionar
           </button>
         </div>
+
+        {/* Segundo campo de data para operador "entre" - em nova linha */}
+        {novoFiltro.operador === 'entre' && getFieldConfigSafe(novoFiltro.tabela, novoFiltro.campo).tipo === 'data' && (
+          <div className="flex items-center gap-3 pl-4">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Data Final:</span>
+            <div className="relative flex-1 max-w-xs">
+              <input
+                type="date"
+                value={novoFiltro.valorFim}
+                onChange={(e) => setNovoFiltro({...novoFiltro, valorFim: e.target.value})}
+                className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                style={{ colorScheme: 'dark' }}
+                placeholder="Data final"
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
       </div>
 
       {/* Métricas */}
@@ -1612,7 +1679,7 @@ const resetarPaginacao = () => {
               <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{venda.Quantidade}</td>
               <td className="px-4 py-3 text-sm font-medium text-green-600 dark:text-green-400">
                 {formatarMoeda(
-                  converterValor(venda["Preço Unitário"]) * parseInt(venda.Quantidade || '1')
+                  calcularTotalVenda(venda.total, venda.Quantidade, venda["Preço Unitário"])
                 )}
               </td>
               <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{venda.NomeRepr}</td>
@@ -1639,7 +1706,7 @@ const resetarPaginacao = () => {
             <div className="ml-3 text-right flex-shrink-0">
               <p className="text-lg font-bold text-green-600 dark:text-green-400">
                 {formatarMoeda(
-                  converterValor(venda["Preço Unitário"]) * parseInt(venda.Quantidade || '1')
+                  calcularTotalVenda(venda.total, venda.Quantidade, venda["Preço Unitário"])
                 )}
               </p>
             </div>
@@ -2426,7 +2493,7 @@ const resetarPaginacao = () => {
               {/* Valor (editável) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
-                  Valor
+                  Valor {filtroEditando.operador === 'entre' ? 'Inicial' : ''}
                 </label>
                 {getFieldConfigSafe(filtroEditando.tabela, filtroEditando.campo).tipo === 'select' ? (
                   <select
@@ -2438,15 +2505,64 @@ const resetarPaginacao = () => {
                       <option key={valor} value={valor}>{valor}</option>
                     ))}
                   </select>
+                ) : getFieldConfigSafe(filtroEditando.tabela, filtroEditando.campo).tipo === 'data' ? (
+                  // Campo de DATA com calendário
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={filtroEditando.valor}
+                      onChange={(e) => setFiltroEditando({...filtroEditando, valor: e.target.value})}
+                      className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      style={{ colorScheme: 'dark' }}
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  </div>
                 ) : (
                   <input
-                    type="text"
+                    type={getFieldConfigSafe(filtroEditando.tabela, filtroEditando.campo).tipo === 'numero' ? 'number' : 'text'}
                     value={filtroEditando.valor}
                     onChange={(e) => setFiltroEditando({...filtroEditando, valor: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 )}
               </div>
+
+              {/* Valor Final para operador "entre" */}
+              {filtroEditando.operador === 'entre' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                    Valor Final
+                  </label>
+                  {getFieldConfigSafe(filtroEditando.tabela, filtroEditando.campo).tipo === 'data' ? (
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={filtroEditando.valorFim || ''}
+                        onChange={(e) => setFiltroEditando({...filtroEditando, valorFim: e.target.value})}
+                        className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        style={{ colorScheme: 'dark' }}
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    </div>
+                  ) : (
+                    <input
+                      type={getFieldConfigSafe(filtroEditando.tabela, filtroEditando.campo).tipo === 'numero' ? 'number' : 'text'}
+                      value={filtroEditando.valorFim || ''}
+                      onChange={(e) => setFiltroEditando({...filtroEditando, valorFim: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Digite o valor final..."
+                    />
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Botões */}

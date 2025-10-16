@@ -1,27 +1,10 @@
-// Na função calcularTotalVenda, adicione logging
-export function calcularTotalVenda(
-  totalExistente: string | number | null | undefined,
-  quantidade: string | number | null | undefined,
-  precoUnitario: string | number | null | undefined
-): number {
-  const converterValor = (valor: string | number | null | undefined): number => {
-    if (!valor) return 0
-    if (typeof valor === 'number') return valor
-    return parseFloat(valor.toString().replace(',', '.')) || 0
-  }
+// Substitua todo o conteúdo do arquivo calcular-total.ts por este:
+import { normalizarValorMonetario, calcularTotalVenda, formatarMoeda } from './formatacao-monetaria';
 
-  const total = converterValor(totalExistente)
-  const qtd = converterValor(quantidade)
-  const preco = converterValor(precoUnitario)
+// Re-exporta as funções para manter compatibilidade com código existente
+export { normalizarValorMonetario, calcularTotalVenda, formatarMoeda };
 
-  if (total > 0) {
-    return total // Usa valor original
-  }
-
-  if (qtd > 0 && preco > 0) {
-    const calculado = qtd * preco
-    return calculado
-  }
-
-  return 0
-}
+// Esta função é mantida para compatibilidade com código existente
+export const converterValor = (valor: any): number => {
+  return normalizarValorMonetario(valor);
+};
