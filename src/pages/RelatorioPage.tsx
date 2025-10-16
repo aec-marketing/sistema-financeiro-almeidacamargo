@@ -894,7 +894,8 @@ const processarDadosGrafico = useCallback((config: GraficoConfig): DadosGrafico[
       venda["Preço Unitário"]
     );
 
-    acc[chave].faturamento_total += valorVenda;
+    // Somar usando arredondamento para evitar erros de float
+    acc[chave].faturamento_total = Math.round((acc[chave].faturamento_total + valorVenda) * 100) / 100;
     acc[chave].frequencia_vendas += 1;
     acc[chave].valores.push(valorVenda);
 

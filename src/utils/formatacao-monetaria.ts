@@ -42,44 +42,54 @@ export const normalizarValorMonetario = (valor: any): number => {
   // consideramos que pode haver um erro de formatação
   // Isso é uma heurística e deve ser ajustada conforme seus dados
   const MAX_EXPECTED_VALUE = 10000000; // 100 mil é um valor razoável para seus produtos?
-  
+
   if (numero > MAX_EXPECTED_VALUE) {
     // Tenta corrigir dividindo por potências de 10 até obter um valor razoável
     for (let i = 1; i <= 5; i++) {
       const potentialValue = numero / Math.pow(10, i);
       if (potentialValue < MAX_EXPECTED_VALUE) {
         console.warn(`Valor potencialmente incorreto corrigido: ${numero} → ${potentialValue}`);
-        return potentialValue;
+        return Math.round(potentialValue * 100) / 100;
       }
     }
   }
-  
-  return numero;
+
+  // Arredonda para 2 casas decimais usando inteiros para evitar problemas de float
+  return Math.round(numero * 100) / 100;
+
+};
+export const precoParaCentavos = (valor: any): number => {
+  const numero = normalizarValorMonetario(valor); // float
+  return Number((numero * 100).toFixed(0)); // força arredondamento correto
 };
 
+// --- Novo helper: retorna valor em CENTAVOS (inteiro) ---
+export const normalizarParaCentavos = (valor: any): number => {
+  const numero = normalizarValorMonetario(valor); // já arredonda para 2 casas
+  return Math.round(numero * 100); // inteiro de centavos
+};
 /**
  * Calcula o valor total da venda com base na quantidade e preço unitário
  * Prioriza sempre o cálculo manual para evitar erros de formatação
  */
+// --- Atualização de calcularTotalVenda para trabalhar em centavos ---
 export const calcularTotalVenda = (total: any, quantidade: any, precoUnitario: any): number => {
-  // Normaliza os valores
-  const qtd = normalizarValorMonetario(quantidade);
-  const preco = normalizarValorMonetario(precoUnitario);
-  const valorTotal = normalizarValorMonetario(total);
-  
-  // Prioridade 1: Calcula manualmente (quantidade * preço)
-  if (qtd > 0 && preco > 0) {
-    return qtd * preco;
+  const qtd = normalizarValorMonetario(quantidade); // inteiro
+  const precoCents = precoParaCentavos(precoUnitario); // inteiro exato
+  const totalCentsInformado = normalizarParaCentavos(total);
+
+  if (qtd > 0 && precoCents > 0) {
+    const valorTotalCents = qtd * precoCents; // multiplicação exata
+    return valorTotalCents / 100; // volta para reais
   }
-  
-  // Prioridade 2: Usa o valor total informado, após normalização
-  if (valorTotal > 0) {
-    return valorTotal;
+
+  if (totalCentsInformado > 0) {
+    return totalCentsInformado / 100;
   }
-  
-  // Se não há dados suficientes
+
   return 0;
 };
+
 
 /**
  * Formata um valor numérico para exibição em formato brasileiro

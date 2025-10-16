@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import type { MetricasGlobais, ProdutoVenda, ClienteCompra } from '../types/observador';
 import { calcularCrescimento, calcularTicketMedio } from '../utils/calculos-metas';
 import { ordenarPor } from '../utils/observador-helpers';
+import { calcularTotalVenda } from '../utils/formatacao-monetaria';
 
 interface UseMetricasGlobaisResult {
   metricas: MetricasGlobais | null;
@@ -58,7 +59,7 @@ export function useMetricasGlobais(
       // 1. Buscar vendas do mês atual
       const { data: vendasMes, error: vendasMesError } = await supabase
         .from('vendas')
-        .select('total, cdCli, NomeCli, CIDADE, "Descr. Produto", "Cód. Referência", MARCA')
+        .select('total, Quantidade, "Preço Unitário", cdCli, NomeCli, CIDADE, "Descr. Produto", "Cód. Referência", MARCA')
         .gte('"Data de Emissao da NF"', mesInicio)
         .lte('"Data de Emissao da NF"', mesFim);
 
@@ -67,24 +68,28 @@ export function useMetricasGlobais(
       // 2. Buscar vendas do mês anterior
       const { data: vendasMesAnterior, error: vendasMesAnteriorError } = await supabase
         .from('vendas')
-        .select('total, cdCli')
+        .select('total, Quantidade, "Preço Unitário", cdCli')
         .gte('"Data de Emissao da NF"', mesAnteriorInicio)
         .lte('"Data de Emissao da NF"', mesAnteriorFim);
 
       if (vendasMesAnteriorError) throw vendasMesAnteriorError;
 
-      // 3. Calcular faturamento total do mês
-      const faturamentoTotal = vendasMes?.reduce((acc, v) => {
-  const valor = Number(v.total) || 0;
-  return acc + valor;
-}, 0) || 0;
+      // 3. Calcular faturamento total do mês usando soma em centavos para evitar erros de float
+      let faturamentoTotalCents = 0;
+      vendasMes?.forEach(v => {
+        const valor = calcularTotalVenda(v.total, v.Quantidade, v['Preço Unitário']);
+        faturamentoTotalCents += Math.round(valor * 100);
+      });
+      const faturamentoTotal = faturamentoTotalCents / 100;
       const totalVendas = vendasMes?.length || 0;
 
-      // 4. Calcular faturamento do mês anterior
-      const faturamentoMesAnterior = vendasMesAnterior?.reduce((acc, v) => {
-  const valor = Number(v.total) || 0;
-  return acc + valor;
-}, 0) || 0;
+      // 4. Calcular faturamento do mês anterior usando soma em centavos
+      let faturamentoMesAnteriorCents = 0;
+      vendasMesAnterior?.forEach(v => {
+        const valor = calcularTotalVenda(v.total, v.Quantidade, v['Preço Unitário']);
+        faturamentoMesAnteriorCents += Math.round(valor * 100);
+      });
+      const faturamentoMesAnterior = faturamentoMesAnteriorCents / 100;
       const totalVendasMesAnterior = vendasMesAnterior?.length || 0;
 
       // 5. Calcular clientes únicos (ativos nos últimos 6 meses)
@@ -140,10 +145,11 @@ export function useMetricasGlobais(
       vendasMes?.forEach(venda => {
         const chave = venda['Cód. Referência'] || 'SEM_CODIGO';
         const atual = produtosMap.get(chave);
+        const valorVenda = calcularTotalVenda(venda.total, venda.Quantidade, venda['Preço Unitário']);
 
         if (atual) {
           atual.totalVendido += 1;
-          atual.faturamento += Number(venda.total) || 0;
+          atual.faturamento = Math.round((atual.faturamento + valorVenda) * 100) / 100;
           atual.numeroVendas += 1;
         } else {
           produtosMap.set(chave, {
@@ -151,7 +157,7 @@ export function useMetricasGlobais(
             codigoReferencia: venda['Cód. Referência'] || 'N/A',
             marca: venda.MARCA || 'Sem marca',
             totalVendido: 1,
-            faturamento: Number(venda.total) || 0,
+            faturamento: valorVenda,
             numeroVendas: 1,
           });
         }
@@ -184,15 +190,16 @@ export function useMetricasGlobais(
       vendasMes?.forEach(venda => {
         const chave = venda.cdCli || 'DESCONHECIDO';
         const atual = clientesMap.get(chave);
+        const valorVenda = calcularTotalVenda(venda.total, venda.Quantidade, venda['Preço Unitário']);
 
         if (atual) {
-          atual.faturamento += Number(venda.total) || 0;
+          atual.faturamento = Math.round((atual.faturamento + valorVenda) * 100) / 100;
           atual.numeroCompras += 1;
         } else {
           clientesMap.set(chave, {
             nomeCliente: venda.NomeCli || 'Cliente desconhecido',
             cidade: venda.CIDADE || 'N/A',
-            faturamento: Number(venda.total) || 0,
+            faturamento: valorVenda,
             numeroCompras: 1,
           });
         }

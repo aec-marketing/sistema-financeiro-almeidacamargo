@@ -260,15 +260,18 @@ const VendedorDashboard: React.FC = () => {
 
           console.log(`📅 Vendas deste mês: ${vendasMes.length}`)
 
-          // Calcular KPIs
+          // Calcular KPIs usando soma em centavos para evitar erros de float
           const totalVendasMes = vendasMes.length
-          const faturamentoMes = vendasMes.reduce((sum, venda) => {
-            return sum + calcularTotalVenda(
+          let faturamentoMesCents = 0
+          vendasMes.forEach(venda => {
+            const valor = calcularTotalVenda(
               venda.total,
               venda.Quantidade,
               venda['Preço Unitário']
             )
-          }, 0)
+            faturamentoMesCents += Math.round(valor * 100)
+          })
+          const faturamentoMes = faturamentoMesCents / 100
 
           const ticketMedio = totalVendasMes > 0 ? faturamentoMes / totalVendasMes : 0
           const clientesAtendidos = new Set(vendasMes.map(v => v.NomeCli)).size
@@ -331,7 +334,8 @@ const VendedorDashboard: React.FC = () => {
 
             const cliente = clientesMap.get(nomeCliente)!
             cliente.totalCompras += 1
-            cliente.faturamentoTotal += valorVenda
+            // Somar usando arredondamento para evitar erros de float
+            cliente.faturamentoTotal = Math.round((cliente.faturamentoTotal + valorVenda) * 100) / 100
 
             // Atualizar última compra
             cliente.ultimaCompra = venda['Data de Emissao da NF']
@@ -428,7 +432,8 @@ const VendedorDashboard: React.FC = () => {
             venda.Quantidade,
             venda['Preço Unitário']
           )
-          cliente.faturamentoTotal += valorVenda
+          // Somar usando arredondamento para evitar erros de float
+          cliente.faturamentoTotal = Math.round((cliente.faturamentoTotal + valorVenda) * 100) / 100
 
           // Primeira venda encontrada é a mais recente (ORDER BY DESC)
           if (!cliente.ultimaCompra) {

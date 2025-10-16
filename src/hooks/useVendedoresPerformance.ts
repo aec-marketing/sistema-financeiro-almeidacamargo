@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import type { VendedorPerformance, MarcaPerformance } from '../types/observador';
 import { calcularProgressoMeta } from '../utils/calculos-metas';
 import { agruparPor, ordenarPor } from '../utils/observador-helpers';
+import { calcularTotalVenda } from '../utils/formatacao-monetaria';
 
 interface UseVendedoresPerformanceResult {
   vendedores: VendedorPerformance[];
@@ -54,13 +55,13 @@ export function useVendedoresPerformance(
 
       const { data: todasVendasMes } = await supabase
         .from('vendas')
-        .select('total, MARCA, NomeRepr, cdRepr')
+        .select('total, Quantidade, "Preço Unitário", MARCA, NomeRepr, cdRepr')
         .gte('"Data de Emissao da NF"', mesInicio)
         .lte('"Data de Emissao da NF"', mesFim);
 
       const { data: todasVendasAno } = await supabase
         .from('vendas')
-        .select('total, MARCA, NomeRepr, cdRepr')
+        .select('total, Quantidade, "Preço Unitário", MARCA, NomeRepr, cdRepr')
         .gte('"Data de Emissao da NF"', `${ano}-01-01`)
         .lte('"Data de Emissao da NF"', `${ano}-12-31`);
 
@@ -77,16 +78,20 @@ export function useVendedoresPerformance(
           profile.cd_representante && v.cdRepr === profile.cd_representante
         );
 
-        // Calcular totais (converter para número)
-        const vendasMesAtual = vendasMesVendedor.reduce((acc, v) => {
-          const valor = Number(v.total) || 0;
-          return acc + valor;
-        }, 0);
+        // Calcular totais usando soma em centavos para evitar erros de float
+        let vendasMesAtualCents = 0;
+        vendasMesVendedor.forEach(v => {
+          const valor = calcularTotalVenda(v.total, v.Quantidade, v['Preço Unitário']);
+          vendasMesAtualCents += Math.round(valor * 100);
+        });
+        const vendasMesAtual = vendasMesAtualCents / 100;
 
-        const vendasAnoAtual = vendasAnoVendedor.reduce((acc, v) => {
-          const valor = Number(v.total) || 0;
-          return acc + valor;
-        }, 0);
+        let vendasAnoAtualCents = 0;
+        vendasAnoVendedor.forEach(v => {
+          const valor = calcularTotalVenda(v.total, v.Quantidade, v['Preço Unitário']);
+          vendasAnoAtualCents += Math.round(valor * 100);
+        });
+        const vendasAnoAtual = vendasAnoAtualCents / 100;
 
         // Calcular top 3 marcas do mês
         const marcasAgrupadas = agruparPor(
@@ -94,14 +99,18 @@ export function useVendedoresPerformance(
           'MARCA'
         );
         
-        const marcasTotais = Object.entries(marcasAgrupadas).map(([marca, vendas]) => ({
-          nome: marca,
-          total: vendas.reduce((acc, v) => {
-            const valor = Number(v.total) || 0;
-            return acc + valor;
-          }, 0),
-          percentual: 0,
-        }));
+        const marcasTotais = Object.entries(marcasAgrupadas).map(([marca, vendas]) => {
+          let totalCents = 0;
+          vendas.forEach((v: any) => {
+            const valor = calcularTotalVenda(v.total, v.Quantidade, v['Preço Unitário']);
+            totalCents += Math.round(valor * 100);
+          });
+          return {
+            nome: marca,
+            total: totalCents / 100,
+            percentual: 0,
+          };
+        });
 
         const marcasOrdenadas = ordenarPor(marcasTotais, 'total', 'desc');
         const top3Marcas = marcasOrdenadas.slice(0, 3);

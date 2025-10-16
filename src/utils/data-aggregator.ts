@@ -5,6 +5,7 @@
  * Converte dados brutos em estruturas agregadas por dimensão
  */
 import type { AgrupamentoPor, ItemDetalhado } from '../types/comparativo';
+import { calcularTotalVenda } from './formatacao-monetaria';
 
 // Definição local do tipo Venda (reutilizando do comparativo-engine)
 interface Venda {
@@ -118,14 +119,16 @@ export const agregarVendas = (
       };
     }
 
-    // Calcular valor da venda
-    const valorVenda = converterValor(venda.total) > 0
-      ? converterValor(venda.total)
-      : converterValor(venda["Preço Unitário"]) * converterQuantidade(venda.Quantidade);
+    // Calcular valor da venda usando a função corrigida
+    const valorVenda = calcularTotalVenda(
+      venda.total,
+      venda.Quantidade,
+      venda["Preço Unitário"]
+    );
 
-    // Somar quantidades e valores
+    // Somar quantidades e valores usando arredondamento para evitar erros de float
     agregado[chave].quantidade += converterQuantidade(venda.Quantidade);
-    agregado[chave].valor += valorVenda;
+    agregado[chave].valor = Math.round((agregado[chave].valor + valorVenda) * 100) / 100;
     
     // Adicionar cliente único
     if (venda.NomeCli) {
@@ -152,22 +155,27 @@ interface TotaisGerais {
  */
 export const calcularTotaisGerais = (vendas: Venda[]): TotaisGerais => {
   const clientesSet = new Set<string>();
-  let faturamentoTotal = 0;
+  let faturamentoTotalCents = 0;
   let quantidadeTotal = 0;
 
   vendas.forEach(venda => {
-    // Calcular valor da venda
-    const valorVenda = converterValor(venda.total) > 0
-      ? converterValor(venda.total)
-      : converterValor(venda["Preço Unitário"]) * converterQuantidade(venda.Quantidade);
+    // Calcular valor da venda usando a função corrigida
+    const valorVenda = calcularTotalVenda(
+      venda.total,
+      venda.Quantidade,
+      venda["Preço Unitário"]
+    );
 
-    faturamentoTotal += valorVenda;
+    // Somar em centavos para evitar erros de float
+    faturamentoTotalCents += Math.round(valorVenda * 100);
     quantidadeTotal += converterQuantidade(venda.Quantidade);
-    
+
     if (venda.NomeCli) {
       clientesSet.add(venda.NomeCli);
     }
   });
+
+  const faturamentoTotal = faturamentoTotalCents / 100;
 
   return {
     faturamentoTotal,

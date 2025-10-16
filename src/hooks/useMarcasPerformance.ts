@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { calcularTotalVenda } from '../utils/formatacao-monetaria';
 
 interface MarcaPerformanceData {
   nome: string;
@@ -54,14 +55,14 @@ export function useMarcasPerformance(
       // Buscar vendas do ano
       const { data: vendasAno } = await supabase
         .from('vendas')
-        .select('total, MARCA')
+        .select('total, Quantidade, "Preço Unitário", MARCA')
         .gte('"Data de Emissao da NF"', `${ano}-01-01`)
         .lte('"Data de Emissao da NF"', `${ano}-12-31`);
 
       // Buscar vendas do mês
       const { data: vendasMes } = await supabase
         .from('vendas')
-        .select('total, MARCA')
+        .select('total, Quantidade, "Preço Unitário", MARCA')
         .gte('"Data de Emissao da NF"', mesInicio)
         .lte('"Data de Emissao da NF"', mesFim);
 
@@ -71,15 +72,26 @@ export function useMarcasPerformance(
         return;
       }
 
-      // Agrupar vendas por marca
-      const calcularTotalMarca = (vendas: Array<{ total: number | string; MARCA: string }>, marcaNome: string | string[]) => {        const marcasArray = Array.isArray(marcaNome) ? marcaNome : [marcaNome];
-        return vendas
+      // Agrupar vendas por marca usando soma em centavos
+      const calcularTotalMarca = (vendas: Array<{ total: any; Quantidade: any; 'Preço Unitário': any; MARCA: string }>, marcaNome: string | string[]) => {
+        const marcasArray = Array.isArray(marcaNome) ? marcaNome : [marcaNome];
+        let totalCents = 0;
+        vendas
           .filter(v => v.MARCA && marcasArray.includes(v.MARCA))
-          .reduce((acc, v) => acc + (Number(v.total) || 0), 0);
+          .forEach(v => {
+            const valor = calcularTotalVenda(v.total, v.Quantidade, v['Preço Unitário']);
+            totalCents += Math.round(valor * 100);
+          });
+        return totalCents / 100;
       };
 
-      // Calcular total geral do ano para percentuais
-      const totalGeralAno = vendasAno.reduce((acc, v) => acc + (Number(v.total) || 0), 0);
+      // Calcular total geral do ano para percentuais usando soma em centavos
+      let totalGeralAnoCents = 0;
+      vendasAno.forEach(v => {
+        const valor = calcularTotalVenda(v.total, v.Quantidade, v['Preço Unitário']);
+        totalGeralAnoCents += Math.round(valor * 100);
+      });
+      const totalGeralAno = totalGeralAnoCents / 100;
 
       // Marcas principais
       const marcasPrincipais = ['SMC', 'BANNER', 'WAGO', 'PFANNENBERG', 'FAMATEL'];
