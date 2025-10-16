@@ -41,7 +41,7 @@ export const normalizarValorMonetario = (valor: any): number => {
   // Aplica sanity check - Se o valor parece absurdo (100x maior do que deveria)
   // consideramos que pode haver um erro de formatação
   // Isso é uma heurística e deve ser ajustada conforme seus dados
-  const MAX_EXPECTED_VALUE = 100000; // 100 mil é um valor razoável para seus produtos?
+  const MAX_EXPECTED_VALUE = 10000000; // 100 mil é um valor razoável para seus produtos?
   
   if (numero > MAX_EXPECTED_VALUE) {
     // Tenta corrigir dividindo por potências de 10 até obter um valor razoável
