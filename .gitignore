@@ -32,3 +32,8 @@ yarn-error.log*
 *.njsproj
 *.sln
 *.sw?
+
+Clientes.csv
+console primeiro.txt
+console segundo.txt
+console terceiro.txt

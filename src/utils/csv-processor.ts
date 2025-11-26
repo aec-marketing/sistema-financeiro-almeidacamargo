@@ -25,7 +25,14 @@ export interface DadosCSV {
  * Processa arquivo CSV e retorna dados estruturados
  */
 export function processarCSV(conteudo: string): DadosCSV {
-  const linhas = conteudo
+  // Remover BOM (Byte Order Mark) se existir - comum em arquivos UTF-8
+  let conteudoLimpo = conteudo
+  if (conteudoLimpo.charCodeAt(0) === 0xFEFF) {
+    conteudoLimpo = conteudoLimpo.substring(1)
+    console.log('⚠️ BOM (UTF-8 Byte Order Mark) detectado e removido')
+  }
+
+  const linhas = conteudoLimpo
     .split('\n')
     .map(linha => linha.trim())
     .filter(linha => linha.length > 0)
@@ -40,7 +47,7 @@ export function processarCSV(conteudo: string): DadosCSV {
 
   // Primeira linha como cabeçalhos
   const headers = parsearLinhaCSV(linhas[0], separador)
-  
+
   // Demais linhas como dados
   const rows = linhas.slice(1).map(linha => parsearLinhaCSV(linha, separador))
 
@@ -71,10 +78,10 @@ function parsearLinhaCSV(linha: string, separador: string = ','): string[] {
   const resultado: string[] = []
   let atual = ''
   let dentroAspas = false
-  
+
   for (let i = 0; i < linha.length; i++) {
     const char = linha[i]
-    
+
     if (char === '"') {
       dentroAspas = !dentroAspas
     } else if (char === separador && !dentroAspas) {
@@ -84,9 +91,15 @@ function parsearLinhaCSV(linha: string, separador: string = ','): string[] {
       atual += char
     }
   }
-  
+
   resultado.push(atual.trim())
-  return resultado.map(item => item.replace(/^"|"$/g, '')) // Remove aspas das pontas
+  // Remove aspas das pontas e caracteres invisíveis (BOM, zero-width spaces, etc)
+  return resultado.map(item => {
+    let limpo = item.replace(/^"|"$/g, '')
+    // Remove caracteres de controle e BOM que podem ter sobrado
+    limpo = limpo.replace(/[\u200B-\u200D\uFEFF]/g, '')
+    return limpo
+  })
 }
 
 /**
@@ -121,12 +134,46 @@ export async function importarClientes(
   resultado.detalhes.push(`📊 Processando ${dadosCSV.rows.length} registros de clientes`)
   resultado.detalhes.push(`🗂️ Colunas detectadas: ${dadosCSV.headers.join(', ')}`)
 
+  // Buscar todos os clientes existentes uma vez para otimizar verificação de duplicatas
+  const { data: clientesExistentes } = await supabase
+    .from('clientes')
+    .select('Entidade, Nome, CNPJ')
+
+  // Criar índices para busca rápida (banco de dados existente)
+  const entidadesExistentes = new Set(
+    clientesExistentes?.map((c: any) => c.Entidade?.toString().trim().toLowerCase()) || []
+  )
+  const cnpjsExistentes = new Set(
+    clientesExistentes?.map((c: any) => c.CNPJ?.toString().trim().replace(/\D/g, '')) || []
+  )
+  const nomesExistentes = new Set(
+    clientesExistentes?.map((c: any) => c.Nome?.toString().trim().toLowerCase()) || []
+  )
+
+  // Criar índices para rastrear duplicatas DENTRO do próprio CSV sendo importado
+  const entidadesNesseImporte = new Set<string>()
+  const cnpjsNesseImporte = new Set<string>()
+  const nomesNesseImporte = new Set<string>()
+
+  console.log('🔍 Índices de duplicatas criados:', {
+    entidades: entidadesExistentes.size,
+    cnpjs: cnpjsExistentes.size,
+    nomes: nomesExistentes.size
+  })
+
+  // Debug: verificar se há caracteres estranhos nas primeiras entidades
+  const primeirasEntidades = Array.from(entidadesExistentes).slice(0, 3)
+  console.log('🔍 Debug das primeiras 3 Entidades do banco:')
+  primeirasEntidades.forEach(ent => {
+    console.log(`   "${ent}" - Caracteres: [${Array.from(ent).map(c => c.charCodeAt(0)).join(', ')}]`)
+  })
+
   for (let i = 0; i < dadosCSV.rows.length; i++) {
     const linha = dadosCSV.rows[i]
-    
+
     try {
       const cliente = mapearDadosCliente(dadosCSV.headers, linha, mapeamentoColunas)
-      
+
       if (!cliente.Entidade) {
         resultado.erros++
         resultado.registrosComErro.push({
@@ -137,30 +184,123 @@ export async function importarClientes(
         continue
       }
 
-      // Verificar se cliente já existe
-      const { data: clienteExistente } = await supabase
+      // Debug dos primeiros 10 registros
+      if (i < 10) {
+        console.log(`\n📋 REGISTRO ${i} (linha ${i + 2} do CSV):`)
+        console.log(`   Entidade: "${cliente.Entidade}"`)
+        console.log(`   Nome: "${cliente.Nome}"`)
+        console.log(`   CNPJ: "${cliente.CNPJ}"`)
+      }
+
+      // Verificar se cliente já existe (por Entidade, CNPJ ou Nome)
+      let motivoDuplicata = ''
+      let tipoDuplicata = '' // 'banco' ou 'arquivo'
+
+      // Verificar por Entidade
+      if (cliente.Entidade) {
+        const entidadeLimpa = cliente.Entidade.toString().trim().toLowerCase()
+
+        if (i < 10) {
+          console.log(`   Entidade limpa: "${entidadeLimpa}" - Chars: [${Array.from(entidadeLimpa).map(c => c.charCodeAt(0)).join(', ')}]`)
+          console.log(`   Existe no banco? ${entidadesExistentes.has(entidadeLimpa)}`)
+          console.log(`   Existe neste arquivo? ${entidadesNesseImporte.has(entidadeLimpa)}`)
+        }
+
+        if (entidadesExistentes.has(entidadeLimpa)) {
+          motivoDuplicata = `Entidade "${cliente.Entidade}"`
+          tipoDuplicata = 'banco'
+          if (i < 10) console.log(`   ❌ BLOQUEADO: Duplicata no banco`)
+        } else if (entidadesNesseImporte.has(entidadeLimpa)) {
+          motivoDuplicata = `Entidade "${cliente.Entidade}"`
+          tipoDuplicata = 'arquivo'
+          if (i < 10) console.log(`   ❌ BLOQUEADO: Duplicata interna do arquivo`)
+        }
+      }
+
+      // Verificar por CNPJ (se não encontrou duplicata ainda)
+      if (!motivoDuplicata && cliente.CNPJ) {
+        const cnpjLimpo = cliente.CNPJ.toString().trim().replace(/\D/g, '')
+        if (cnpjLimpo) {
+          if (i < 10) {
+            console.log(`   CNPJ limpo: "${cnpjLimpo}"`)
+            console.log(`   Existe no banco? ${cnpjsExistentes.has(cnpjLimpo)}`)
+            console.log(`   Existe neste arquivo? ${cnpjsNesseImporte.has(cnpjLimpo)}`)
+          }
+
+          if (cnpjsExistentes.has(cnpjLimpo)) {
+            motivoDuplicata = `CNPJ "${cliente.CNPJ}"`
+            tipoDuplicata = 'banco'
+            if (i < 10) console.log(`   ❌ BLOQUEADO: Duplicata no banco (CNPJ)`)
+          } else if (cnpjsNesseImporte.has(cnpjLimpo)) {
+            motivoDuplicata = `CNPJ "${cliente.CNPJ}"`
+            tipoDuplicata = 'arquivo'
+            if (i < 10) console.log(`   ❌ BLOQUEADO: Duplicata interna do arquivo (CNPJ)`)
+          }
+        }
+      }
+
+      // Verificar por Nome (se não encontrou duplicata ainda)
+      if (!motivoDuplicata && cliente.Nome) {
+        const nomeLimpo = cliente.Nome.toString().trim().toLowerCase()
+        if (i < 10) {
+          console.log(`   Nome limpo: "${nomeLimpo}"`)
+          console.log(`   Existe no banco? ${nomesExistentes.has(nomeLimpo)}`)
+          console.log(`   Existe neste arquivo? ${nomesNesseImporte.has(nomeLimpo)}`)
+        }
+
+        if (nomesExistentes.has(nomeLimpo)) {
+          motivoDuplicata = `Nome "${cliente.Nome}"`
+          tipoDuplicata = 'banco'
+          if (i < 10) console.log(`   ❌ BLOQUEADO: Duplicata no banco (Nome)`)
+        } else if (nomesNesseImporte.has(nomeLimpo)) {
+          motivoDuplicata = `Nome "${cliente.Nome}"`
+          tipoDuplicata = 'arquivo'
+          if (i < 10) console.log(`   ❌ BLOQUEADO: Duplicata interna do arquivo (Nome)`)
+        }
+      }
+
+      if (motivoDuplicata) {
+        // Cliente duplicado - bloquear importação
+        resultado.erros++
+        const origemDuplicata = tipoDuplicata === 'banco'
+          ? 'já existe no banco de dados'
+          : 'já apareceu anteriormente neste arquivo'
+        resultado.registrosComErro.push({
+          linha: i + 2,
+          dados: linha,
+          erro: `Cliente com ${motivoDuplicata} ${origemDuplicata}`
+        })
+        continue
+      }
+
+      // Inserir novo cliente
+      if (i < 10) {
+        console.log(`   ✅ APROVADO: Será importado`)
+      }
+
+      const { error } = await supabase
         .from('clientes')
-        .select('id')
-        .eq('Entidade', cliente.Entidade)
-        .single()
+        .insert([cliente])
 
-      if (clienteExistente) {
-        // Atualizar cliente existente
-        const { error } = await supabase
-          .from('clientes')
-          .update(cliente)
-          .eq('Entidade', cliente.Entidade)
+      if (error) throw error
+      resultado.inseridos++
 
-        if (error) throw error
-        resultado.atualizados++
-      } else {
-        // Inserir novo cliente
-        const { error } = await supabase
-          .from('clientes')
-          .insert([cliente])
+      if (i < 10) {
+        console.log(`   💾 INSERIDO no banco com sucesso`)
+      }
 
-        if (error) throw error
-        resultado.inseridos++
+      // Adicionar aos índices de controle para evitar duplicatas dentro deste mesmo importe
+      if (cliente.Entidade) {
+        const entidadeLimpa = cliente.Entidade.toString().trim().toLowerCase()
+        entidadesNesseImporte.add(entidadeLimpa)
+        if (i < 10) console.log(`   📝 Adicionado "${entidadeLimpa}" ao controle de duplicatas`)
+      }
+      if (cliente.CNPJ) {
+        const cnpjLimpo = cliente.CNPJ.toString().trim().replace(/\D/g, '')
+        if (cnpjLimpo) cnpjsNesseImporte.add(cnpjLimpo)
+      }
+      if (cliente.Nome) {
+        nomesNesseImporte.add(cliente.Nome.toString().trim().toLowerCase())
       }
     } catch (error) {
       resultado.erros++
@@ -186,10 +326,18 @@ export async function importarClientes(
     }
   )
 
+  // Log final com estatísticas
+  console.log('\n📊 RESUMO DA IMPORTAÇÃO:')
+  console.log(`   Total de registros processados: ${dadosCSV.rows.length}`)
+  console.log(`   ✅ Inseridos: ${resultado.inseridos}`)
+  console.log(`   ❌ Erros/Duplicatas: ${resultado.erros}`)
+  console.log(`   Entidades únicas neste importe: ${entidadesNesseImporte.size}`)
+  console.log(`   CNPJs únicos neste importe: ${cnpjsNesseImporte.size}`)
+  console.log(`   Nomes únicos neste importe: ${nomesNesseImporte.size}`)
+
   resultado.detalhes.push(`✅ ${resultado.inseridos} clientes inseridos`)
-  resultado.detalhes.push(`🔄 ${resultado.atualizados} clientes atualizados`)
   if (resultado.erros > 0) {
-    resultado.detalhes.push(`⚠️ ${resultado.erros} registros com erro`)
+    resultado.detalhes.push(`⚠️ ${resultado.erros} registros com erro (incluindo duplicatas bloqueadas)`)
   }
 
   return resultado
@@ -265,23 +413,23 @@ export async function importarVendas(
         .single()
 
       if (vendaExistente) {
-        // Atualizar venda existente
-        const { error } = await supabase
-          .from('vendas')
-          .update(venda)
-          .eq('"Número da Nota Fiscal"', venda['Número da Nota Fiscal'])
-
-        if (error) throw error
-        resultado.atualizados++
-      } else {
-        // Inserir nova venda
-        const { error } = await supabase
-          .from('vendas')
-          .insert([venda])
-
-        if (error) throw error
-        resultado.inseridos++
+        // Venda duplicada - bloquear importação
+        resultado.erros++
+        resultado.registrosComErro.push({
+          linha: i + 2,
+          dados: linha,
+          erro: `Venda com NF "${venda['Número da Nota Fiscal']}" já existe no banco de dados`
+        })
+        continue
       }
+
+      // Inserir nova venda
+      const { error } = await supabase
+        .from('vendas')
+        .insert([venda])
+
+      if (error) throw error
+      resultado.inseridos++
     } catch (error) {
       resultado.erros++
       resultado.registrosComErro.push({
@@ -307,9 +455,8 @@ export async function importarVendas(
   )
 
   resultado.detalhes.push(`✅ ${resultado.inseridos} vendas inseridas`)
-  resultado.detalhes.push(`🔄 ${resultado.atualizados} vendas atualizadas`)
   if (resultado.erros > 0) {
-    resultado.detalhes.push(`⚠️ ${resultado.erros} registros com erro`)
+    resultado.detalhes.push(`⚠️ ${resultado.erros} registros com erro (incluindo duplicatas bloqueadas)`)
   }
 
   return resultado
@@ -392,23 +539,23 @@ export async function importarProdutos(
         .single()
 
       if (produtoExistente) {
-        // Atualizar produto existente
-        const { error } = await supabase
-          .from('itens')
-          .update(produto)
-          .eq('"Cód. Referência"', produto['Cód. Referência'])
-
-        if (error) throw error
-        resultado.atualizados++
-      } else {
-        // Inserir novo produto
-        const { error } = await supabase
-          .from('itens')
-          .insert([produto])
-
-        if (error) throw error
-        resultado.inseridos++
+        // Produto duplicado - bloquear importação
+        resultado.erros++
+        resultado.registrosComErro.push({
+          linha: i + 2,
+          dados: linha,
+          erro: `Produto com código "${produto['Cód. Referência']}" já existe no banco de dados`
+        })
+        continue
       }
+
+      // Inserir novo produto
+      const { error } = await supabase
+        .from('itens')
+        .insert([produto])
+
+      if (error) throw error
+      resultado.inseridos++
     } catch (error) {
       resultado.erros++
       resultado.registrosComErro.push({
@@ -434,18 +581,341 @@ export async function importarProdutos(
   )
 
   resultado.detalhes.push(`✅ ${resultado.inseridos} produtos inseridos`)
-  resultado.detalhes.push(`🔄 ${resultado.atualizados} produtos atualizados`)
   if (resultado.erros > 0) {
-    resultado.detalhes.push(`⚠️ ${resultado.erros} registros com erro`)
+    resultado.detalhes.push(`⚠️ ${resultado.erros} registros com erro (incluindo duplicatas bloqueadas)`)
   }
 
   return resultado
 }
 
 /**
+ * Verifica duplicatas de clientes em lote (otimizado para grandes volumes)
+ */
+export async function verificarDuplicatasClientes(
+  clientes: Cliente[],
+  onProgresso?: (atual: number, total: number, mensagem: string) => void
+): Promise<Set<number>> {
+  const duplicatasIndices = new Set<number>()
+  const TAMANHO_LOTE = 50 // Reduzido para evitar sobrecarga
+  const totalLotes = Math.ceil(clientes.length / TAMANHO_LOTE)
+
+  // Buscar todos os clientes existentes de uma vez (mais eficiente)
+  try {
+    const { data: clientesExistentes, error } = await supabase
+      .from('clientes')
+      .select('Entidade, Nome, CNPJ')
+
+    if (error) {
+      console.error('Erro ao buscar clientes existentes:', error)
+      return duplicatasIndices
+    }
+
+    console.log('🔍 Total de clientes no banco:', clientesExistentes?.length || 0)
+
+    // Criar índices para busca rápida
+    const entidadesExistentes = new Set(
+      clientesExistentes?.map((c: any) => c.Entidade?.toString().trim().toLowerCase()) || []
+    )
+    const cnpjsExistentes = new Set(
+      clientesExistentes?.map((c: any) => c.CNPJ?.toString().trim().replace(/\D/g, '')) || []
+    )
+    const nomesExistentes = new Map(
+      clientesExistentes?.map((c: any) => [
+        c.Nome?.toString().trim().toLowerCase(),
+        c
+      ]) || []
+    )
+
+    console.log('📊 Índices criados:', {
+      entidades: entidadesExistentes.size,
+      cnpjs: cnpjsExistentes.size,
+      nomes: nomesExistentes.size
+    })
+
+    // Debug: mostrar primeiros valores
+    console.log('🔍 Primeiras 5 Entidades no banco:', Array.from(entidadesExistentes).slice(0, 5))
+    console.log('🔍 Primeiros 5 CNPJs no banco:', Array.from(cnpjsExistentes).slice(0, 5))
+
+    // Debug: verificar se há caracteres estranhos nas primeiras entidades
+    const primeirasEntidades = Array.from(entidadesExistentes).slice(0, 3)
+    console.log('🔍 Debug das primeiras 3 Entidades do banco:')
+    primeirasEntidades.forEach(ent => {
+      console.log(`   "${ent}" - Caracteres: [${Array.from(ent).map(c => c.charCodeAt(0)).join(', ')}]`)
+    })
+
+    // Criar índices para rastrear duplicatas DENTRO do próprio CSV
+    const entidadesNoArquivo = new Set<string>()
+    const cnpjsNoArquivo = new Set<string>()
+    const nomesNoArquivo = new Set<string>()
+
+    // Verificar cada cliente contra os índices
+    for (let i = 0; i < clientes.length; i++) {
+      const cliente = clientes[i]
+
+      if (onProgresso && i % 10 === 0) {
+        onProgresso(i + 1, clientes.length, `Verificando registro ${i + 1} de ${clientes.length}`)
+      }
+
+      // Debug dos primeiros 3 clientes
+      if (i < 3) {
+        console.log(`🔍 Cliente ${i}:`, {
+          Entidade: cliente.Entidade,
+          Nome: cliente.Nome,
+          CNPJ: cliente.CNPJ
+        })
+        if (cliente.Entidade) {
+          const entStr = cliente.Entidade.toString().trim().toLowerCase()
+          console.log(`   Entidade limpa: "${entStr}" - Caracteres: [${Array.from(entStr).map(c => c.charCodeAt(0)).join(', ')}]`)
+        }
+      }
+
+      let isDuplicata = false
+      let motivoDuplicata = ''
+      let tipoDuplicata = '' // 'banco' ou 'arquivo'
+
+      // Verificar por Entidade
+      if (cliente.Entidade) {
+        const entidadeLimpa = cliente.Entidade.toString().trim().toLowerCase()
+
+        if (i < 3) {
+          console.log(`  🔍 Entidade "${entidadeLimpa}"`)
+          console.log(`     Existe no banco? ${entidadesExistentes.has(entidadeLimpa)}`)
+          console.log(`     Existe no arquivo? ${entidadesNoArquivo.has(entidadeLimpa)}`)
+        }
+
+        if (entidadesExistentes.has(entidadeLimpa)) {
+          isDuplicata = true
+          motivoDuplicata = 'Entidade'
+          tipoDuplicata = 'banco'
+        } else if (entidadesNoArquivo.has(entidadeLimpa)) {
+          isDuplicata = true
+          motivoDuplicata = 'Entidade'
+          tipoDuplicata = 'arquivo'
+        }
+      }
+
+      // Verificar por CNPJ (se não encontrou duplicata ainda)
+      if (!isDuplicata && cliente.CNPJ) {
+        const cnpjLimpo = cliente.CNPJ.toString().trim().replace(/\D/g, '')
+
+        if (i < 3) {
+          console.log(`  🔍 CNPJ "${cnpjLimpo}"`)
+          console.log(`     Existe no banco? ${cnpjsExistentes.has(cnpjLimpo)}`)
+          console.log(`     Existe no arquivo? ${cnpjsNoArquivo.has(cnpjLimpo)}`)
+        }
+
+        if (cnpjLimpo) {
+          if (cnpjsExistentes.has(cnpjLimpo)) {
+            isDuplicata = true
+            motivoDuplicata = 'CNPJ'
+            tipoDuplicata = 'banco'
+          } else if (cnpjsNoArquivo.has(cnpjLimpo)) {
+            isDuplicata = true
+            motivoDuplicata = 'CNPJ'
+            tipoDuplicata = 'arquivo'
+          }
+        }
+      }
+
+      // Verificar por Nome (se não encontrou duplicata ainda)
+      if (!isDuplicata && cliente.Nome) {
+        const nomeLimpo = cliente.Nome.toString().trim().toLowerCase()
+
+        if (i < 3) {
+          console.log(`  🔍 Nome "${nomeLimpo}"`)
+          console.log(`     Existe no banco? ${nomesExistentes.has(nomeLimpo)}`)
+          console.log(`     Existe no arquivo? ${nomesNoArquivo.has(nomeLimpo)}`)
+        }
+
+        if (nomesExistentes.has(nomeLimpo)) {
+          isDuplicata = true
+          motivoDuplicata = 'Nome'
+          tipoDuplicata = 'banco'
+        } else if (nomesNoArquivo.has(nomeLimpo)) {
+          isDuplicata = true
+          motivoDuplicata = 'Nome'
+          tipoDuplicata = 'arquivo'
+        }
+      }
+
+      // Se é duplicata, adicionar ao conjunto e continuar
+      if (isDuplicata) {
+        duplicatasIndices.add(i)
+        if (i < 10) {
+          console.log(`  ❌ DUPLICATA por ${motivoDuplicata} (origem: ${tipoDuplicata}): linha ${i}`)
+        }
+        continue
+      }
+
+      // Se NÃO é duplicata, adicionar aos índices do arquivo
+      if (cliente.Entidade) {
+        entidadesNoArquivo.add(cliente.Entidade.toString().trim().toLowerCase())
+      }
+      if (cliente.CNPJ) {
+        const cnpjLimpo = cliente.CNPJ.toString().trim().replace(/\D/g, '')
+        if (cnpjLimpo) cnpjsNoArquivo.add(cnpjLimpo)
+      }
+      if (cliente.Nome) {
+        nomesNoArquivo.add(cliente.Nome.toString().trim().toLowerCase())
+      }
+    }
+
+    if (onProgresso) {
+      onProgresso(clientes.length, clientes.length, `Verificação concluída: ${duplicatasIndices.size} duplicatas encontradas`)
+    }
+
+    // Log final detalhado
+    console.log('✅ VERIFICAÇÃO CONCLUÍDA:')
+    console.log(`   Total de linhas: ${clientes.length}`)
+    console.log(`   Duplicatas encontradas: ${duplicatasIndices.size}`)
+    console.log(`   Registros novos: ${clientes.length - duplicatasIndices.size}`)
+    console.log(`   Duplicatas internas no arquivo: ${entidadesNoArquivo.size} únicas de ${clientes.length - duplicatasIndices.size} processadas`)
+
+    // Mostrar alguns clientes NÃO duplicados (que serão importados)
+    const naoduplicados = clientes.filter((_, index) => !duplicatasIndices.has(index)).slice(0, 3)
+    console.log('📝 Primeiros 3 clientes que SERÃO importados:', naoduplicados)
+
+  } catch (err) {
+    console.error('Erro ao verificar duplicatas:', err)
+  }
+
+  return duplicatasIndices
+}
+
+/**
+ * Verifica duplicatas de vendas em lote (otimizado para grandes volumes)
+ */
+export async function verificarDuplicatasVendas(
+  vendas: any[],
+  onProgresso?: (atual: number, total: number, mensagem: string) => void
+): Promise<Set<number>> {
+  const duplicatasIndices = new Set<number>()
+
+  try {
+    // Extrair todos os números de NF únicos
+    const numeroNFs = [...new Set(
+      vendas
+        .map(v => v['Número da Nota Fiscal'])
+        .filter(nf => nf)
+        .map(nf => nf.toString().trim())
+    )]
+
+    if (numeroNFs.length === 0) return duplicatasIndices
+
+    // Buscar em lotes para evitar query muito grande
+    const TAMANHO_LOTE = 100
+    const nfsExistentes = new Set<string>()
+
+    for (let i = 0; i < numeroNFs.length; i += TAMANHO_LOTE) {
+      const lote = numeroNFs.slice(i, Math.min(i + TAMANHO_LOTE, numeroNFs.length))
+
+      if (onProgresso) {
+        onProgresso(i, numeroNFs.length, `Verificando NFs ${i} a ${i + lote.length} de ${numeroNFs.length}`)
+      }
+
+      const { data, error } = await supabase
+        .from('vendas')
+        .select('"Número da Nota Fiscal"')
+        .in('"Número da Nota Fiscal"', lote)
+
+      if (!error && data) {
+        data.forEach((v: any) => {
+          nfsExistentes.add(v['Número da Nota Fiscal']?.toString().trim())
+        })
+      }
+
+      // Pequeno delay para não sobrecarregar o DB
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+
+    // Marcar duplicatas
+    vendas.forEach((venda, index) => {
+      const nf = venda['Número da Nota Fiscal']?.toString().trim()
+      if (nf && nfsExistentes.has(nf)) {
+        duplicatasIndices.add(index)
+      }
+    })
+
+    if (onProgresso) {
+      onProgresso(numeroNFs.length, numeroNFs.length, `Verificação concluída: ${duplicatasIndices.size} duplicatas encontradas`)
+    }
+
+  } catch (err) {
+    console.error('Erro ao verificar duplicatas de vendas:', err)
+  }
+
+  return duplicatasIndices
+}
+
+/**
+ * Verifica duplicatas de produtos em lote (otimizado para grandes volumes)
+ */
+export async function verificarDuplicatasProdutos(
+  produtos: any[],
+  onProgresso?: (atual: number, total: number, mensagem: string) => void
+): Promise<Set<number>> {
+  const duplicatasIndices = new Set<number>()
+
+  try {
+    // Extrair todos os códigos únicos
+    const codigos = [...new Set(
+      produtos
+        .map(p => p['Cód. Referência'])
+        .filter(cod => cod)
+        .map(cod => cod.toString().trim())
+    )]
+
+    if (codigos.length === 0) return duplicatasIndices
+
+    // Buscar em lotes
+    const TAMANHO_LOTE = 100
+    const codigosExistentes = new Set<string>()
+
+    for (let i = 0; i < codigos.length; i += TAMANHO_LOTE) {
+      const lote = codigos.slice(i, Math.min(i + TAMANHO_LOTE, codigos.length))
+
+      if (onProgresso) {
+        onProgresso(i, codigos.length, `Verificando códigos ${i} a ${i + lote.length} de ${codigos.length}`)
+      }
+
+      const { data, error } = await supabase
+        .from('itens')
+        .select('"Cód. Referência"')
+        .in('"Cód. Referência"', lote)
+
+      if (!error && data) {
+        data.forEach((p: any) => {
+          codigosExistentes.add(p['Cód. Referência']?.toString().trim())
+        })
+      }
+
+      // Pequeno delay para não sobrecarregar o DB
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+
+    // Marcar duplicatas
+    produtos.forEach((produto, index) => {
+      const cod = produto['Cód. Referência']?.toString().trim()
+      if (cod && codigosExistentes.has(cod)) {
+        duplicatasIndices.add(index)
+      }
+    })
+
+    if (onProgresso) {
+      onProgresso(codigos.length, codigos.length, `Verificação concluída: ${duplicatasIndices.size} duplicatas encontradas`)
+    }
+
+  } catch (err) {
+    console.error('Erro ao verificar duplicatas de produtos:', err)
+  }
+
+  return duplicatasIndices
+}
+
+/**
  * Cria mapeamento inteligente de colunas
  */
-function criarMapeamentoColunas(headers: string[], possiveisNomes: string[]): Map<string, number> {
+export function criarMapeamentoColunas(headers: string[], possiveisNomes: string[]): Map<string, number> {
   const mapeamento = new Map<string, number>()
   
   headers.forEach((header, index) => {

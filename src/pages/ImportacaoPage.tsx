@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle, ArrowLeft, ArrowRight, AlertCircle } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle, ArrowLeft, ArrowRight, AlertCircle, Phone } from 'lucide-react';
 import {
   analisarCSV,
   detectarTabelaDestino,
@@ -7,9 +7,10 @@ import {
   transformarDadosParaInsercao,
   detectarDuplicatas,
   importarDadosEmLotes,
+  aplicarAtualizacoesTelefone,
   validarLinha,
   type TabelaDestino,
-    CAMPOS_TABELAS  // <-- ADICIONAR ESTA LINHA  
+    CAMPOS_TABELAS  // <-- ADICIONAR ESTA LINHA
 } from '../utils/importacao-inteligente';
 import { supabase } from '../lib/supabase';
 
@@ -32,12 +33,14 @@ export default function ImportacaoPage() {
   // Validação e preview
   const [dadosTransformados, setDadosTransformados] = useState<Record<string, string | number | null>[]>([]);
   const [duplicatas, setDuplicatas] = useState<Array<{ linha: number; motivo: string; registro: Record<string, string | number | null> }>>([]);
+  const [atualizacoes, setAtualizacoes] = useState<Array<{ id: number; clienteNome: string; telefoneAntigo: string; telefoneNovo: string; registro: any }>>([]);
   const [errosValidacao, setErrosValidacao] = useState<Array<{ linha: number; erros: string[] }>>([]);
 
   // Importação
   const [progresso, setProgresso] = useState(0);
   const [mensagemProgresso, setMensagemProgresso] = useState('');
   const [resultado, setResultado] = useState<{ sucesso: number; erros: Array<{ linha: number; erro: string }> } | null>(null);
+  const [resultadoAtualizacoes, setResultadoAtualizacoes] = useState<{ sucesso: number; erros: Array<{ id: number; nome: string; erro: string }> } | null>(null);
 
   // Etapa 1: Upload do arquivo
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,11 +81,14 @@ export default function ImportacaoPage() {
   // Etapa 2: Confirmar mapeamento
   const handleConfirmarMapeamento = async () => {
     setLoading(true);
+    setMensagemProgresso('Transformando dados...');
 
     try {
       // Transforma dados
       const transformados = transformarDadosParaInsercao(dados, mapeamento);
       setDadosTransformados(transformados);
+
+      setMensagemProgresso(`Validando ${transformados.length} registros...`);
 
       // Valida linhas - converte de volta para Record<string, string> para validação
       const erros: Array<{ linha: number; erros: string[] }> = [];
@@ -97,16 +103,20 @@ export default function ImportacaoPage() {
         }
       });
       setErrosValidacao(erros);
-      
+
+      setMensagemProgresso('Verificando duplicatas no banco de dados...');
+
       // Detecta duplicatas
       const deteccaoDuplicatas = await detectarDuplicatas(transformados, tabelaDestino, supabase);
       setDuplicatas(deteccaoDuplicatas.duplicatas);
-      
+      setAtualizacoes(deteccaoDuplicatas.atualizacoes || []);
+
       setEtapa('preview');
     } catch (error) {
       alert('Erro ao processar dados: ' + (error as Error).message);
     } finally {
       setLoading(false);
+      setMensagemProgresso('');
     }
   };
 
@@ -114,7 +124,7 @@ export default function ImportacaoPage() {
   const handleImportar = async () => {
     setLoading(true);
     setEtapa('importacao');
-    
+
     try {
       // Remove duplicatas e linhas com erro
       const linhasParaImportar = dadosTransformados.filter((_, index) => {
@@ -122,7 +132,7 @@ export default function ImportacaoPage() {
         const ehDuplicata = duplicatas.some(d => d.linha === index + 1);
         return !temErro && !ehDuplicata;
       });
-      
+
       const resultado = await importarDadosEmLotes(
         linhasParaImportar,
         tabelaDestino,
@@ -132,12 +142,39 @@ export default function ImportacaoPage() {
           setMensagemProgresso(msg);
         }
       );
-      
+
       setResultado(resultado);
       setEtapa('concluido');
     } catch (error) {
       alert('Erro ao importar dados: ' + (error as Error).message);
       setEtapa('preview');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Etapa 3.5: Aplicar Atualizações de Telefone
+  const handleAplicarAtualizacoes = async () => {
+    setLoading(true);
+
+    try {
+      const resultado = await aplicarAtualizacoesTelefone(
+        atualizacoes,
+        supabase,
+        (prog, msg) => {
+          setProgresso(prog);
+          setMensagemProgresso(msg);
+        }
+      );
+
+      setResultadoAtualizacoes(resultado);
+
+      // Remover as atualizações aplicadas da lista
+      setAtualizacoes([]);
+
+      alert(`Atualizações aplicadas!\n${resultado.sucesso} telefones atualizados com sucesso${resultado.erros.length > 0 ? `\n${resultado.erros.length} erros` : ''}`);
+    } catch (error) {
+      alert('Erro ao aplicar atualizações: ' + (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -318,10 +355,23 @@ export default function ImportacaoPage() {
             </table>
           </div>
 
+          {/* Loading durante processamento */}
+          {loading && (
+            <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin" />
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  {mensagemProgresso || 'Processando...'}
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-3 mt-6">
             <button
               onClick={() => setEtapa('upload')}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900"
+              disabled={loading}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ArrowLeft className="h-4 w-4 inline mr-2" />
               Voltar
@@ -329,10 +379,19 @@ export default function ImportacaoPage() {
             <button
               onClick={handleConfirmarMapeamento}
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400"
+              className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              Continuar
-              <ArrowRight className="h-4 w-4 inline ml-2" />
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline mr-2" />
+                  Processando...
+                </>
+              ) : (
+                <>
+                  Continuar
+                  <ArrowRight className="h-4 w-4 inline ml-2" />
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -343,21 +402,68 @@ export default function ImportacaoPage() {
   <div className="space-y-4">
     {/* Avisos */}
     {(duplicatas.length > 0 || errosValidacao.length > 0) && (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <h4 className="font-semibold text-yellow-900 mb-2 flex items-center gap-2">
+      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+        <h4 className="font-semibold text-yellow-900 dark:text-yellow-100 mb-2 flex items-center gap-2">
           <AlertCircle className="h-5 w-5" />
           Atenção
         </h4>
         {duplicatas.length > 0 && (
-          <p className="text-sm text-yellow-800 mb-1">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-1">
             • {duplicatas.length} duplicatas detectadas (serão ignoradas)
           </p>
         )}
         {errosValidacao.length > 0 && (
-          <p className="text-sm text-yellow-800">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200">
             • {errosValidacao.length} linhas com erros de validação (serão ignoradas)
           </p>
         )}
+      </div>
+    )}
+
+    {/* Atualizações de Telefone Disponíveis */}
+    {atualizacoes.length > 0 && (
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Phone className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            <div>
+              <h4 className="font-semibold text-blue-900 dark:text-blue-100">
+                Atualizações de Telefone Disponíveis
+              </h4>
+              <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                {atualizacoes.length} cliente{atualizacoes.length > 1 ? 's' : ''} com telefones novos detectados
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleAplicarAtualizacoes}
+            disabled={loading}
+            className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+          >
+            <Phone className="h-4 w-4" />
+            Aplicar Atualizações
+          </button>
+        </div>
+
+        {/* Lista de Atualizações */}
+        <div className="mt-4 space-y-2 max-h-64 overflow-y-auto">
+          {atualizacoes.slice(0, 10).map((atualizacao, index) => (
+            <div key={index} className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-blue-200 dark:border-blue-700">
+              <p className="font-medium text-gray-900 dark:text-white text-sm">{atualizacao.clienteNome}</p>
+              <div className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+                <span className="font-medium">Telefone atual:</span> {atualizacao.telefoneAntigo || '(vazio)'}
+              </div>
+              <div className="mt-1 text-xs text-blue-700 dark:text-blue-300 font-medium">
+                <span className="font-medium">Será atualizado para:</span> {atualizacao.telefoneNovo}
+              </div>
+            </div>
+          ))}
+          {atualizacoes.length > 10 && (
+            <p className="text-xs text-gray-600 dark:text-gray-400 text-center pt-2">
+              E mais {atualizacoes.length - 10} atualizações...
+            </p>
+          )}
+        </div>
       </div>
     )}
 

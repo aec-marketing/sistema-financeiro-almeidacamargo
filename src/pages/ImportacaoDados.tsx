@@ -1,6 +1,6 @@
 // src/pages/ImportacaoDados.tsx
 import React, { useState, useRef } from 'react'
-import { Upload, FileText, Users, Package, ShoppingCart, AlertTriangle, CheckCircle, X, Download } from 'lucide-react'
+import { Upload, FileText, Users, Package, ShoppingCart, AlertTriangle, CheckCircle, X, Download, Search } from 'lucide-react'
 import { useUserAccess } from '../hooks/useUserAccess'
 import { RoleGuard } from '../components/Auth/RoleGuard'
 
@@ -26,6 +26,15 @@ interface EstadoUpload {
     erros: number
     detalhes: string[]
   }
+  // Novos estados para verificação de duplicatas
+  verificandoDuplicatas: boolean
+  duplicatasVerificadas: boolean
+  duplicatasIndices: Set<number>
+  progressoVerificacao: {
+    atual: number
+    total: number
+    mensagem: string
+  } | null
 }
 
 export default function ImportacaoDados() {
@@ -36,7 +45,11 @@ export default function ImportacaoDados() {
     preview: null,
     processando: false,
     concluido: false,
-    erro: null
+    erro: null,
+    verificandoDuplicatas: false,
+    duplicatasVerificadas: false,
+    duplicatasIndices: new Set<number>(),
+    progressoVerificacao: null
   })
 
   const inputFileRef = useRef<HTMLInputElement>(null)
@@ -79,8 +92,106 @@ export default function ImportacaoDados() {
       preview: null,
       processando: false,
       concluido: false,
-      erro: null
+      erro: null,
+      verificandoDuplicatas: false,
+      duplicatasVerificadas: false,
+      duplicatasIndices: new Set<number>(),
+      progressoVerificacao: null
     })
+  }
+
+  // Função para verificar duplicatas manualmente
+  const verificarDuplicatasManual = async () => {
+    if (!estadoUpload.arquivo || !estadoUpload.tipo || !user) return
+
+    setEstadoUpload(prev => ({
+      ...prev,
+      verificandoDuplicatas: true,
+      progressoVerificacao: { atual: 0, total: 100, mensagem: 'Iniciando verificação...' }
+    }))
+
+    try {
+      // Ler arquivo completo
+      const conteudoCompleto = await lerArquivoCompleto(estadoUpload.arquivo)
+
+      // Importar utilitários
+      const {
+        processarCSV,
+        verificarDuplicatasClientes,
+        verificarDuplicatasVendas,
+        verificarDuplicatasProdutos
+      } = await import('../utils/csv-processor')
+
+      const dadosCSV = processarCSV(conteudoCompleto)
+
+      // Callback de progresso
+      const onProgresso = (atual: number, total: number, mensagem: string) => {
+        setEstadoUpload(prev => ({
+          ...prev,
+          progressoVerificacao: { atual, total, mensagem }
+        }))
+      }
+
+      let duplicatasIndices: Set<number>
+
+      // Mapear dados e verificar duplicatas baseado no tipo
+      switch (estadoUpload.tipo) {
+        case 'clientes': {
+          const { criarMapeamentoColunas } = await import('../utils/csv-processor')
+          const mapeamento = criarMapeamentoColunas(dadosCSV.headers, [
+            'Entidade', 'entidade', 'codigo', 'id', 'ID',
+            'Nome', 'nome', 'razao_social', 'empresa',
+            'CNPJ', 'cnpj', 'documento'
+          ])
+
+          // Mapear clientes
+          const clientes = dadosCSV.rows.map(linha => ({
+            Entidade: linha[mapeamento.get('Entidade') ?? -1],
+            Nome: linha[mapeamento.get('Nome') ?? -1],
+            CNPJ: linha[mapeamento.get('CNPJ') ?? -1]
+          }))
+
+          duplicatasIndices = await verificarDuplicatasClientes(clientes, onProgresso)
+          break
+        }
+
+        case 'vendas': {
+          const vendas = dadosCSV.rows.map(linha => ({
+            'Número da Nota Fiscal': linha[0] // Assumindo primeira coluna
+          }))
+          duplicatasIndices = await verificarDuplicatasVendas(vendas, onProgresso)
+          break
+        }
+
+        case 'produtos': {
+          const produtos = dadosCSV.rows.map(linha => ({
+            'Cód. Referência': linha[0] // Assumindo primeira coluna
+          }))
+          duplicatasIndices = await verificarDuplicatasProdutos(produtos, onProgresso)
+          break
+        }
+
+        default:
+          duplicatasIndices = new Set<number>()
+      }
+
+      setEstadoUpload(prev => ({
+        ...prev,
+        verificandoDuplicatas: false,
+        duplicatasVerificadas: true,
+        duplicatasIndices,
+        progressoVerificacao: null
+      }))
+
+    } catch (error) {
+      console.error('Erro ao verificar duplicatas:', error)
+      setEstadoUpload(prev => ({
+        ...prev,
+        verificandoDuplicatas: false,
+        progressoVerificacao: null,
+        erro: 'Erro ao verificar duplicatas: ' + (error instanceof Error ? error.message : 'erro desconhecido')
+      }))
+    }
   }
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -481,31 +592,150 @@ export default function ImportacaoDados() {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200">
-                  {estadoUpload.preview.rows.map((row, rowIndex) => (
-                    <tr key={rowIndex} className="hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900">
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-600 dark:text-gray-300">
-                        {rowIndex + 1}
-                      </td>
-                      {row.map((celula, cellIndex) => (
-                        <td
-                          key={cellIndex}
-                          className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white max-w-xs truncate"
-                          title={celula}
-                        >
-                          {celula || <span className="text-gray-600 dark:text-gray-300 italic">vazio</span>}
+                  {estadoUpload.preview.rows.map((row, rowIndex) => {
+                    const isDuplicata = estadoUpload.duplicatasVerificadas && estadoUpload.duplicatasIndices.has(rowIndex)
+                    return (
+                      <tr
+                        key={rowIndex}
+                        className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                          isDuplicata
+                            ? 'bg-red-50 dark:bg-red-900/20'
+                            : 'dark:bg-gray-900'
+                        }`}
+                      >
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-600 dark:text-gray-300">
+                          <div className="flex items-center gap-2">
+                            {rowIndex + 1}
+                            {isDuplicata && (
+                              <span className="px-2 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-700 text-xs rounded-full font-medium">
+                                Duplicata
+                              </span>
+                            )}
+                          </div>
                         </td>
-                      ))}
-                    </tr>
-                  ))}
+                        {row.map((celula, cellIndex) => (
+                          <td
+                            key={cellIndex}
+                            className={`px-4 py-3 whitespace-nowrap text-sm max-w-xs truncate ${
+                              isDuplicata
+                                ? 'text-red-900 dark:text-red-200 line-through'
+                                : 'text-gray-900 dark:text-white'
+                            }`}
+                            title={celula}
+                          >
+                            {celula || <span className="text-gray-600 dark:text-gray-300 italic">vazio</span>}
+                          </td>
+                        ))}
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
+
+            {/* Aviso de Verificação de Duplicatas */}
+            {!estadoUpload.duplicatasVerificadas && !estadoUpload.verificandoDuplicatas && (
+              <div className="px-6 py-4 bg-yellow-50 dark:bg-yellow-900/20 border-t border-yellow-200">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-yellow-900 mb-1">
+                      Verificação de Duplicatas Recomendada
+                    </p>
+                    <p className="text-xs text-yellow-800">
+                      Para arquivos grandes, recomendamos verificar duplicatas antes da importação.
+                      Isso pode levar alguns minutos dependendo do tamanho do arquivo ({estadoUpload.preview.totalLinhas} registros).
+                    </p>
+                  </div>
+                  <button
+                    onClick={verificarDuplicatasManual}
+                    disabled={estadoUpload.verificandoDuplicatas}
+                    className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <Search className="w-4 h-4" />
+                    Verificar Duplicatas
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Progresso da Verificação */}
+            {estadoUpload.verificandoDuplicatas && estadoUpload.progressoVerificacao && (
+              <div className="px-6 py-4 bg-blue-50 dark:bg-blue-900/20 border-t border-blue-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-900">
+                      {estadoUpload.progressoVerificacao.mensagem}
+                    </p>
+                    <div className="mt-2 w-full bg-blue-200 dark:bg-blue-900 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full transition-all duration-300"
+                        style={{
+                          width: `${(estadoUpload.progressoVerificacao.atual / estadoUpload.progressoVerificacao.total) * 100}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Resultado da Verificação */}
+            {estadoUpload.duplicatasVerificadas && (
+              <div className={`px-6 py-4 border-t ${
+                estadoUpload.duplicatasIndices.size > 0
+                  ? 'bg-red-50 dark:bg-red-900/20 border-red-200'
+                  : 'bg-green-50 dark:bg-green-900/20 border-green-200'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {estadoUpload.duplicatasIndices.size > 0 ? (
+                      <>
+                        <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                        <div>
+                          <p className="text-sm font-medium text-red-900">
+                            {estadoUpload.duplicatasIndices.size} duplicatas encontradas
+                          </p>
+                          <p className="text-xs text-red-800">
+                            Esses registros já existem no banco de dados e serão bloqueados na importação
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        <div>
+                          <p className="text-sm font-medium text-green-900">
+                            Nenhuma duplicata encontrada
+                          </p>
+                          <p className="text-xs text-green-800">
+                            Todos os {estadoUpload.preview.totalLinhas} registros são novos e podem ser importados
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <button
+                    onClick={verificarDuplicatasManual}
+                    className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800 underline"
+                  >
+                    Verificar Novamente
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Ações do Preview */}
             <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-600 dark:text-gray-300">
                   ✅ Arquivo válido • {estadoUpload.preview.headers.length} colunas detectadas
+                  {estadoUpload.duplicatasVerificadas && (
+                    <span className="ml-2">
+                      • {estadoUpload.preview.totalLinhas - estadoUpload.duplicatasIndices.size} registros serão importados
+                    </span>
+                  )}
                 </div>
                 <div className="flex gap-3">
                   <button
@@ -516,7 +746,7 @@ export default function ImportacaoDados() {
                   </button>
                   <button
                     onClick={processarImportacao}
-                    disabled={estadoUpload.processando}
+                    disabled={estadoUpload.processando || estadoUpload.verificandoDuplicatas}
                     className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
                   >
                     {estadoUpload.processando ? (
@@ -527,7 +757,9 @@ export default function ImportacaoDados() {
                     ) : (
                       <>
                         <Upload className="w-4 h-4" />
-                        Importar {estadoUpload.preview.totalLinhas} Registros
+                        Importar {estadoUpload.duplicatasVerificadas
+                          ? estadoUpload.preview.totalLinhas - estadoUpload.duplicatasIndices.size
+                          : estadoUpload.preview.totalLinhas} Registros
                       </>
                     )}
                   </button>

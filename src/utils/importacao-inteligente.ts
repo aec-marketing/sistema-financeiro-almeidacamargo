@@ -3,6 +3,53 @@ import Papa from 'papaparse';
 // Tipos de dados suportados
 export type TabelaDestino = 'vendas' | 'clientes' | 'itens';
 
+// Função auxiliar para limpar telefone e comparar
+function limparTelefone(telefone: string): string {
+  return telefone.replace(/\D/g, ''); // Remove tudo que não é número
+}
+
+// Função para verificar se dois telefones são muito parecidos
+function telefonesSaoParecidos(tel1: string, tel2: string): boolean {
+  const limpo1 = limparTelefone(tel1);
+  const limpo2 = limparTelefone(tel2);
+
+  // Se são exatamente iguais
+  if (limpo1 === limpo2) return true;
+
+  // Se um contém o outro (ex: "11 4136-4532" contém "41364532")
+  if (limpo1.includes(limpo2) || limpo2.includes(limpo1)) return true;
+
+  return false;
+}
+
+// Função para mesclar telefones únicos
+function mesclarTelefones(telefoneAtual: string, telefoneNovo: string): string {
+  if (!telefoneAtual) return telefoneNovo;
+  if (!telefoneNovo) return telefoneAtual;
+
+  // Separar múltiplos telefones existentes
+  const telefonesAtuais = telefoneAtual.split('/').map(t => t.trim());
+  const telefonesNovos = telefoneNovo.split('/').map(t => t.trim());
+
+  // Adicionar apenas telefones realmente diferentes
+  const todosUnicos = [...telefonesAtuais];
+
+  for (const novoTel of telefonesNovos) {
+    let jaExiste = false;
+    for (const atualTel of telefonesAtuais) {
+      if (telefonesSaoParecidos(novoTel, atualTel)) {
+        jaExiste = true;
+        break;
+      }
+    }
+    if (!jaExiste && novoTel.trim()) {
+      todosUnicos.push(novoTel);
+    }
+  }
+
+  return todosUnicos.join('/');
+}
+
 // Mapeamento de campos por tabela
 export const CAMPOS_TABELAS = {
   vendas: [
@@ -461,135 +508,455 @@ export async function detectarDuplicatas(
 ): Promise<{
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   duplicatas: Array<{ linha: number; motivo: string; registro: any }>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  atualizacoes?: Array<{ id: number; clienteNome: string; telefoneAntigo: string; telefoneNovo: string; registro: any }>;
   total: number;
 }> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const duplicatas: Array<{ linha: number; motivo: string; registro: any }> = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const atualizacoes: Array<{ id: number; clienteNome: string; telefoneAntigo: string; telefoneNovo: string; registro: any }> = [];
 
   if (tabelaDestino === 'vendas') {
-    // Verifica duplicatas no BANCO DE DADOS
-    const notasFiscais = dadosTransformados
-      .map((d, index) => ({ nf: d['Número da Nota Fiscal'], index }))
-      .filter(item => item.nf);
+    // Verifica duplicatas no BANCO DE DADOS e DENTRO DO ARQUIVO
+    try {
+      const notasFiscais = dadosTransformados
+        .map((d, index) => ({ nf: d['Número da Nota Fiscal'], index }))
+        .filter(item => item.nf);
 
-    if (notasFiscais.length > 0) {
-      const nfsParaBuscar = [...new Set(notasFiscais.map(item => String(item.nf).trim()))]; // Remove duplicatas da busca
+      if (notasFiscais.length === 0) return { duplicatas, total: dadosTransformados.length };
 
-      try {
+      const nfsParaBuscar = [...new Set(notasFiscais.map(item => String(item.nf).trim()))];
+
+      const nfsExistentes = new Set<string>();
+      const TAMANHO_LOTE = 100;
+
+      // Buscar em lotes no banco de dados
+      for (let i = 0; i < nfsParaBuscar.length; i += TAMANHO_LOTE) {
+        const lote = nfsParaBuscar.slice(i, Math.min(i + TAMANHO_LOTE, nfsParaBuscar.length));
+
         const { data: existentes, error } = await supabase
           .from('vendas')
           .select('"Número da Nota Fiscal"')
-          .in('"Número da Nota Fiscal"', nfsParaBuscar);
+          .in('"Número da Nota Fiscal"', lote);
 
         if (error) {
-          console.error('Erro ao verificar duplicatas no banco:', error);
-          console.warn('Continuando sem verificação de duplicatas no banco de dados');
+          console.error('Erro ao verificar duplicatas no banco (lote):', error);
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const nfsExistentes = new Set(existentes?.map((e: any) => String(e['Número da Nota Fiscal']).trim()) || []);
-
-          notasFiscais.forEach(({ nf, index }) => {
-            const nfStr = String(nf).trim();
-
-            if (nfStr && nfsExistentes.has(nfStr)) {
-              duplicatas.push({
-                linha: index + 1,
-                motivo: `NF ${nf} já existe no banco de dados`,
-                registro: dadosTransformados[index]
-              });
-            }
+          existentes?.forEach((e: { 'Número da Nota Fiscal': string }) => {
+            nfsExistentes.add(String(e['Número da Nota Fiscal']).trim());
           });
         }
-      } catch (err) {
-        console.error('Erro ao buscar duplicatas:', err);
+
+        // Pequeno delay para não sobrecarregar
+        if (i + TAMANHO_LOTE < nfsParaBuscar.length) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
       }
+
+      console.log('🔍 [VENDAS] Verificação de duplicatas:', {
+        totalRegistros: dadosTransformados.length,
+        nfsNoBanco: nfsExistentes.size
+      });
+
+      // Rastrear NFs já vistas no arquivo para detectar duplicatas internas
+      const nfsNoArquivo = new Set<string>();
+
+      // Marcar duplicatas (banco + internas do arquivo)
+      dadosTransformados.forEach((registro, index) => {
+        const nf = registro['Número da Nota Fiscal'];
+        if (!nf) return;
+
+        const nfStr = String(nf).trim();
+        let motivoDuplicata = '';
+
+        // Verificar se existe no banco
+        if (nfsExistentes.has(nfStr)) {
+          motivoDuplicata = `NF ${nf} já existe no banco de dados`;
+        }
+        // Verificar se é duplicata INTERNA do arquivo
+        else if (nfsNoArquivo.has(nfStr)) {
+          motivoDuplicata = `NF ${nf} duplicada dentro do arquivo (aparece mais de uma vez)`;
+        }
+
+        if (motivoDuplicata) {
+          duplicatas.push({
+            linha: index + 1,
+            motivo: motivoDuplicata,
+            registro
+          });
+        } else {
+          // Adicionar ao rastreamento de NFs do arquivo
+          nfsNoArquivo.add(nfStr);
+        }
+      });
+
+      console.log('📊 [VENDAS] Resultado:', {
+        duplicatasEncontradas: duplicatas.length,
+        nfsUnicasNoArquivo: nfsNoArquivo.size
+      });
+
+    } catch (err) {
+      console.error('Erro ao buscar duplicatas de vendas:', err);
     }
   }
 
   else if (tabelaDestino === 'clientes') {
-    // Verifica duplicatas no BANCO DE DADOS
-    const cnpjs = dadosTransformados
-      .map((d, index) => ({ cnpj: d.CNPJ, index }))
-      .filter(item => item.cnpj);
+    // Verifica duplicatas no BANCO DE DADOS e MESCLA TELEFONES
+    try {
+      // IMPORTANTE: Buscar TODOS os clientes sem limite de paginação
+      // Por padrão Supabase limita a 1000 registros, precisamos buscar todos
+      let clientesExistentes: Array<{
+        id?: number;
+        Entidade: string | number;
+        Nome: string;
+        CNPJ: string;
+        Telefone?: string;
+      }> = []
+      let hasMore = true
+      let offset = 0
+      const PAGE_SIZE = 1000
 
-    if (cnpjs.length > 0) {
-      const cnpjsParaBuscar = [...new Set(cnpjs.map(item => String(item.cnpj).trim()))];
-
-      try {
-        const { data: existentes, error } = await supabase
+      // Buscar em páginas até pegar todos os registros
+      while (hasMore) {
+        const { data, error, count } = await supabase
           .from('clientes')
-          .select('CNPJ')
-          .in('CNPJ', cnpjsParaBuscar);
+          .select('id, Entidade, Nome, CNPJ, Telefone', { count: 'exact' })
+          .range(offset, offset + PAGE_SIZE - 1)
 
         if (error) {
-          console.error('Erro ao verificar duplicatas no banco:', error);
-          console.warn('Continuando sem verificação de duplicatas no banco de dados');
+          console.error('Erro ao verificar duplicatas no banco:', error)
+          console.warn('Continuando sem verificação de duplicatas no banco de dados')
+          break
+        }
+
+        if (data && data.length > 0) {
+          clientesExistentes = [...clientesExistentes, ...data]
+
+          console.log(`🔍 [CLIENTES] Carregados ${clientesExistentes.length} de ${count || '?'} clientes...`)
+
+          // Se retornou menos que PAGE_SIZE, chegamos ao fim
+          if (data.length < PAGE_SIZE) {
+            hasMore = false
+          } else {
+            // Avançar para próxima página
+            offset += PAGE_SIZE
+          }
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const cnpjsExistentes = new Set(existentes?.map((e: any) => String(e.CNPJ).trim()) || []);
+          hasMore = false
+        }
+      }
 
-          cnpjs.forEach(({ cnpj, index }) => {
-            const cnpjStr = String(cnpj).trim();
+      console.log('🔍 [CLIENTES] Total de clientes carregados do banco:', clientesExistentes.length);
 
-            if (cnpjStr && cnpjsExistentes.has(cnpjStr)) {
+      // Criar índices de busca rápida com mapeamento completo
+      const clientesPorEntidade = new Map<string, typeof clientesExistentes[0]>();
+      const clientesPorCNPJ = new Map<string, typeof clientesExistentes[0]>();
+      const clientesPorNome = new Map<string, typeof clientesExistentes[0]>();
+
+      clientesExistentes.forEach(cliente => {
+        if (cliente.Entidade) {
+          clientesPorEntidade.set(cliente.Entidade.toString().trim().toLowerCase(), cliente);
+        }
+        if (cliente.CNPJ) {
+          const cnpjLimpo = cliente.CNPJ.toString().trim().replace(/\D/g, '');
+          if (cnpjLimpo) clientesPorCNPJ.set(cnpjLimpo, cliente);
+        }
+        if (cliente.Nome) {
+          clientesPorNome.set(cliente.Nome.toString().trim().toLowerCase(), cliente);
+        }
+      });
+
+      console.log('📊 [CLIENTES] Índices criados:', {
+        entidades: clientesPorEntidade.size,
+        cnpjs: clientesPorCNPJ.size,
+        nomes: clientesPorNome.size
+      });
+
+      // FASE 1: Agrupar todos os registros por cliente (incluindo duplicatas)
+      const gruposPorCliente = new Map<string, {
+        clienteExistente: typeof clientesExistentes[0] | null;
+        registros: Array<{ registro: any; index: number }>;
+        chaveIdentificacao: string;
+      }>();
+
+      // Agrupar todos os registros
+      dadosTransformados.forEach((registro, index) => {
+        let clienteExistente: typeof clientesExistentes[0] | null = null;
+        let chaveIdentificacao = '';
+
+        // Buscar cliente existente (prioridade: Entidade > CNPJ > Nome)
+        if (registro.Entidade) {
+          const entidadeStr = registro.Entidade.toString().trim().toLowerCase();
+          clienteExistente = clientesPorEntidade.get(entidadeStr) || null;
+          chaveIdentificacao = `entidade:${entidadeStr}`;
+        }
+
+        if (!clienteExistente && registro.CNPJ) {
+          const cnpjLimpo = registro.CNPJ.toString().trim().replace(/\D/g, '');
+          if (cnpjLimpo) {
+            clienteExistente = clientesPorCNPJ.get(cnpjLimpo) || null;
+            chaveIdentificacao = `cnpj:${cnpjLimpo}`;
+          }
+        }
+
+        if (!clienteExistente && registro.Nome) {
+          const nomeStr = registro.Nome.toString().trim().toLowerCase();
+          clienteExistente = clientesPorNome.get(nomeStr) || null;
+          chaveIdentificacao = `nome:${nomeStr}`;
+        }
+
+        // Adicionar ao grupo
+        if (!gruposPorCliente.has(chaveIdentificacao)) {
+          gruposPorCliente.set(chaveIdentificacao, {
+            clienteExistente,
+            registros: [],
+            chaveIdentificacao
+          });
+        }
+
+        gruposPorCliente.get(chaveIdentificacao)!.registros.push({ registro, index });
+      });
+
+      // FASE 2: Processar cada grupo e mesclar TODOS os telefones
+      gruposPorCliente.forEach((grupo) => {
+        const { clienteExistente, registros } = grupo;
+
+        if (registros.length === 0) return;
+
+        // Pegar o primeiro registro como base
+        const primeiroRegistro = registros[0];
+
+        // Se existe no banco - processar atualização
+        if (clienteExistente) {
+          // Coletar TODOS os telefones únicos do arquivo para este cliente
+          let telefoneAcumulado = clienteExistente.Telefone || '';
+
+          let temTelefoneNovo = false;
+
+          registros.forEach(({ registro, index }) => {
+            const telefoneNovo = registro.Telefone?.toString() || '';
+
+            if (telefoneNovo && !telefonesSaoParecidos(telefoneAcumulado, telefoneNovo)) {
+              telefoneAcumulado = mesclarTelefones(telefoneAcumulado, telefoneNovo);
+              temTelefoneNovo = true;
+            }
+
+            // Marcar como duplicata
+            duplicatas.push({
+              linha: index + 1,
+              motivo: temTelefoneNovo
+                ? `Cliente já existe - atualização de telefone disponível`
+                : `Cliente já existe no banco de dados`,
+              registro
+            });
+          });
+
+          // Se houve telefone novo, adicionar UMA ÚNICA atualização com TODOS os telefones
+          if (temTelefoneNovo && clienteExistente.id) {
+            console.log(`📞 [CLIENTES] Atualização disponível para cliente ${clienteExistente.Entidade}:`, {
+              antigo: clienteExistente.Telefone,
+              novoMesclado: telefoneAcumulado,
+              quantidadeRegistrosAgrupados: registros.length
+            });
+
+            atualizacoes.push({
+              id: clienteExistente.id,
+              clienteNome: primeiroRegistro.registro.Nome?.toString() || 'Cliente',
+              telefoneAntigo: clienteExistente.Telefone || '',
+              telefoneNovo: telefoneAcumulado,
+              registro: primeiroRegistro.registro
+            });
+          }
+        }
+        // Se é duplicata interna (múltiplas vezes no arquivo, mas não está no banco)
+        else if (registros.length > 1) {
+          // Mesclar telefones de todas as ocorrências
+          let telefoneAcumulado = '';
+
+          registros.forEach(({ registro, index }, idx) => {
+            const telefoneNovo = registro.Telefone?.toString() || '';
+
+            if (idx === 0) {
+              telefoneAcumulado = telefoneNovo;
+              // Primeiro mantém como válido (será importado)
+            } else {
+              // Demais são marcados como duplicata
+              if (telefoneNovo && !telefonesSaoParecidos(telefoneAcumulado, telefoneNovo)) {
+                telefoneAcumulado = mesclarTelefones(telefoneAcumulado, telefoneNovo);
+              }
+
               duplicatas.push({
                 linha: index + 1,
-                motivo: `CNPJ ${cnpj} já existe no banco de dados`,
-                registro: dadosTransformados[index]
+                motivo: `Cliente duplicado no arquivo - telefones mesclados no primeiro registro`,
+                registro
               });
             }
           });
+
+          // Atualizar o primeiro registro com todos os telefones mesclados
+          registros[0].registro.Telefone = telefoneAcumulado;
+
+          console.log(`📞 [CLIENTES] Mesclando ${registros.length} telefones internos para ${primeiroRegistro.registro.Nome}:`, {
+            telefoneFinal: telefoneAcumulado
+          });
         }
-      } catch (err) {
-        console.error('Erro ao buscar duplicatas:', err);
-      }
+      });
+
+      console.log('\n📊 [CLIENTES] RESUMO:');
+      console.log(`   Total de registros: ${dadosTransformados.length}`);
+      console.log(`   Grupos únicos de clientes: ${gruposPorCliente.size}`);
+      console.log(`   Duplicatas encontradas: ${duplicatas.length}`);
+      console.log(`   Atualizações disponíveis: ${atualizacoes.length}`);
+    } catch (err) {
+      console.error('Erro ao processar clientes:', err);
     }
   }
 
   else if (tabelaDestino === 'itens') {
-    // Verifica duplicatas no BANCO DE DADOS
-    const codigos = dadosTransformados
-      .map((d, index) => ({ codigo: d['Cód. Referência'], index }))
-      .filter(item => item.codigo);
+    // Verifica duplicatas no BANCO DE DADOS e DENTRO DO ARQUIVO
+    try {
+      const codigos = dadosTransformados
+        .map((d, index) => ({ codigo: d['Cód. Referência'], index }))
+        .filter(item => item.codigo);
 
-    if (codigos.length > 0) {
+      if (codigos.length === 0) return { duplicatas, total: dadosTransformados.length };
+
       const codigosParaBuscar = [...new Set(codigos.map(item => String(item.codigo).trim()))];
 
-      try {
+      const codigosExistentes = new Set<string>();
+      const TAMANHO_LOTE = 100;
+
+      // Buscar em lotes no banco de dados
+      for (let i = 0; i < codigosParaBuscar.length; i += TAMANHO_LOTE) {
+        const lote = codigosParaBuscar.slice(i, Math.min(i + TAMANHO_LOTE, codigosParaBuscar.length));
+
         const { data: existentes, error } = await supabase
           .from('itens')
           .select('"Cód. Referência"')
-          .in('"Cód. Referência"', codigosParaBuscar);
+          .in('"Cód. Referência"', lote);
 
         if (error) {
-          console.error('Erro ao verificar duplicatas no banco:', error);
-          console.warn('Continuando sem verificação de duplicatas no banco de dados');
+          console.error('Erro ao verificar duplicatas no banco (lote):', error);
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const codigosExistentes = new Set(existentes?.map((e: any) => String(e['Cód. Referência']).trim()) || []);
-
-          codigos.forEach(({ codigo, index }) => {
-            const codigoStr = String(codigo).trim();
-
-            if (codigoStr && codigosExistentes.has(codigoStr)) {
-              duplicatas.push({
-                linha: index + 1,
-                motivo: `Produto com código ${codigo} já existe no banco de dados`,
-                registro: dadosTransformados[index]
-              });
-            }
+          existentes?.forEach((e: { 'Cód. Referência': string }) => {
+            codigosExistentes.add(String(e['Cód. Referência']).trim());
           });
         }
-      } catch (err) {
-        console.error('Erro ao buscar duplicatas:', err);
+
+        // Pequeno delay para não sobrecarregar
+        if (i + TAMANHO_LOTE < codigosParaBuscar.length) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
       }
+
+      console.log('🔍 [ITENS] Verificação de duplicatas:', {
+        totalRegistros: dadosTransformados.length,
+        codigosNoBanco: codigosExistentes.size
+      });
+
+      // Rastrear códigos já vistos no arquivo para detectar duplicatas internas
+      const codigosNoArquivo = new Set<string>();
+
+      // Marcar duplicatas (banco + internas do arquivo)
+      dadosTransformados.forEach((registro, index) => {
+        const codigo = registro['Cód. Referência'];
+        if (!codigo) return;
+
+        const codigoStr = String(codigo).trim();
+        let motivoDuplicata = '';
+
+        // Verificar se existe no banco
+        if (codigosExistentes.has(codigoStr)) {
+          motivoDuplicata = `Produto com código ${codigo} já existe no banco de dados`;
+        }
+        // Verificar se é duplicata INTERNA do arquivo
+        else if (codigosNoArquivo.has(codigoStr)) {
+          motivoDuplicata = `Produto com código ${codigo} duplicado dentro do arquivo (aparece mais de uma vez)`;
+        }
+
+        if (motivoDuplicata) {
+          duplicatas.push({
+            linha: index + 1,
+            motivo: motivoDuplicata,
+            registro
+          });
+        } else {
+          // Adicionar ao rastreamento de códigos do arquivo
+          codigosNoArquivo.add(codigoStr);
+        }
+      });
+
+      console.log('📊 [ITENS] Resultado:', {
+        duplicatasEncontradas: duplicatas.length,
+        codigosUnicosNoArquivo: codigosNoArquivo.size
+      });
+
+    } catch (err) {
+      console.error('Erro ao buscar duplicatas de itens:', err);
     }
   }
 
   return {
     duplicatas,
-    total: duplicatas.length
+    atualizacoes: tabelaDestino === 'clientes' ? atualizacoes : undefined,
+    total: dadosTransformados.length
   };
+}
+
+// Aplica atualizações de telefone para clientes existentes
+export async function aplicarAtualizacoesTelefone(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  atualizacoes: Array<{ id: number; clienteNome: string; telefoneAntigo: string; telefoneNovo: string; registro: any }>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  onProgresso?: (progresso: number, mensagem: string) => void
+): Promise<{
+  sucesso: number;
+  erros: Array<{ id: number; nome: string; erro: string }>;
+}> {
+  const erros: Array<{ id: number; nome: string; erro: string }> = [];
+  let sucesso = 0;
+
+  console.log(`\n🔄 [ATUALIZAÇÕES] Aplicando ${atualizacoes.length} atualizações de telefone...`);
+
+  for (let i = 0; i < atualizacoes.length; i++) {
+    const atualizacao = atualizacoes[i];
+    const progresso = Math.round(((i + 1) / atualizacoes.length) * 100);
+
+    if (onProgresso) {
+      onProgresso(progresso, `Atualizando ${atualizacao.clienteNome}... (${i + 1}/${atualizacoes.length})`);
+    }
+
+    try {
+      const { error } = await supabase
+        .from('clientes')
+        .update({ Telefone: atualizacao.telefoneNovo })
+        .eq('id', atualizacao.id);
+
+      if (error) {
+        console.error(`❌ Erro ao atualizar telefone do cliente ${atualizacao.id}:`, error);
+        erros.push({
+          id: atualizacao.id,
+          nome: atualizacao.clienteNome,
+          erro: error.message
+        });
+      } else {
+        console.log(`✅ Telefone atualizado para cliente ${atualizacao.clienteNome}`);
+        sucesso++;
+      }
+    } catch (err) {
+      erros.push({
+        id: atualizacao.id,
+        nome: atualizacao.clienteNome,
+        erro: (err as Error).message
+      });
+    }
+  }
+
+  console.log(`\n✅ [ATUALIZAÇÕES] Concluído: ${sucesso} sucesso, ${erros.length} erros`);
+
+  return { sucesso, erros };
 }
 
 // Importa dados em lotes para não sobrecarregar o banco
@@ -605,38 +972,85 @@ export async function importarDadosEmLotes(
 }> {
   const TAMANHO_LOTE = 100;
   const totalLotes = Math.ceil(dados.length / TAMANHO_LOTE);
-  
+
   let sucesso = 0;
   const erros: Array<{ linha: number; erro: string }> = [];
-  
+
+  console.log(`\n🚀 [IMPORTACAO-INTELIGENTE] Iniciando importação de ${dados.length} registros em ${totalLotes} lotes`);
+
   for (let i = 0; i < totalLotes; i++) {
     const inicio = i * TAMANHO_LOTE;
     const fim = Math.min((i + 1) * TAMANHO_LOTE, dados.length);
     const lote = dados.slice(inicio, fim);
-    
+
+    console.log(`\n📦 [IMPORTACAO-INTELIGENTE] Processando lote ${i + 1}/${totalLotes} (${lote.length} registros)`);
+
     try {
-      const { error } = await supabase
+      const { data: insertedData, error } = await supabase
         .from(tabelaDestino)
-        .insert(lote);
+        .insert(lote)
+        .select();
 
       if (error) {
-        lote.forEach((_, index) => {
-          erros.push({
-            linha: inicio + index + 1,
-            erro: error.message
-          });
-        });
+        console.error(`❌ [IMPORTACAO-INTELIGENTE] Erro no lote ${i + 1}:`, error);
+        console.error(`   Código do erro: ${error.code}`);
+        console.error(`   Mensagem: ${error.message}`);
+        console.error(`   Detalhes:`, error.details);
+        console.error(`   Hint:`, error.hint);
+
+        // Tentar inserir um por um para identificar qual registro específico está falhando
+        console.log(`   🔍 Tentando inserir registros individualmente para identificar o problema...`);
+        for (let j = 0; j < lote.length; j++) {
+          const registro = lote[j];
+          const linhaGlobal = inicio + j + 1;
+
+          try {
+            const { error: erroIndividual } = await supabase
+              .from(tabelaDestino)
+              .insert([registro])
+              .select();
+
+            if (erroIndividual) {
+              console.error(`   ❌ Linha ${linhaGlobal} falhou:`, erroIndividual.message);
+              console.error(`      Dados do registro:`, registro);
+              erros.push({
+                linha: linhaGlobal,
+                erro: `${erroIndividual.code}: ${erroIndividual.message}`
+              });
+            } else {
+              console.log(`   ✅ Linha ${linhaGlobal} inserida com sucesso`);
+              sucesso++;
+            }
+          } catch (errIndividual) {
+            const mensagemErro = errIndividual instanceof Error ? errIndividual.message : 'Erro desconhecido';
+            console.error(`   ❌ Linha ${linhaGlobal} falhou (exceção):`, mensagemErro);
+            console.error(`      Dados do registro:`, registro);
+            erros.push({
+              linha: linhaGlobal,
+              erro: mensagemErro
+            });
+          }
+        }
       } else {
+        console.log(`✅ [IMPORTACAO-INTELIGENTE] Lote ${i + 1} inserido com sucesso (${lote.length} registros)`);
+        console.log(`   Dados retornados pelo Supabase:`, insertedData);
+        console.log(`   Quantidade de registros confirmados: ${insertedData?.length || 0}`);
+
+        if (insertedData && insertedData.length !== lote.length) {
+          console.warn(`⚠️ AVISO: Esperava inserir ${lote.length} registros, mas Supabase confirmou apenas ${insertedData.length}`);
+        }
+
         sucesso += lote.length;
       }
-      
+
       // Callback de progresso
       if (onProgresso) {
         const progresso = Math.round(((i + 1) / totalLotes) * 100);
         onProgresso(progresso, `Importando lote ${i + 1} de ${totalLotes}`);
       }
-      
+
     } catch (err) {
+      console.error(`❌ [IMPORTACAO-INTELIGENTE] Exceção no lote ${i + 1}:`, err);
       lote.forEach((_, index) => {
         erros.push({
           linha: inicio + index + 1,
@@ -645,6 +1059,13 @@ export async function importarDadosEmLotes(
       });
     }
   }
-  
+
+  console.log(`\n📊 [IMPORTACAO-INTELIGENTE] RESULTADO DA IMPORTAÇÃO:`);
+  console.log(`   ✅ Sucesso: ${sucesso} registros`);
+  console.log(`   ❌ Erros: ${erros.length} registros`);
+  if (erros.length > 0) {
+    console.log(`   Primeiros erros:`, erros.slice(0, 5));
+  }
+
   return { sucesso, erros };
 }
