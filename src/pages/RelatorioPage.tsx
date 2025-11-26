@@ -1,11 +1,10 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { X, Plus, Search, Download, Save, BarChart3, Table, Filter, RefreshCw } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { gerarRelatorioPDF } from '../utils/exportPDF';
 import html2canvas from 'html2canvas';
 import { useUserAccess } from '../hooks/useUserAccess';
-import { cache, CACHE_KEYS, CACHE_EXPIRATION } from '../utils/cache';
+import { useRelatorioData } from '../hooks/useRelatorioData';
 import {
   normalizarValorMonetario,
   calcularTotalVenda,
@@ -201,6 +200,19 @@ const getOperatorsForField = (tabela: string, campo: string) => {
 
 export default function RelatoriosPage() {
   const { user } = useUserAccess()
+
+  // Carregar dados com cache usando o novo hook
+  const {
+    clientes: dadosClientes,
+    itens: dadosItens,
+    vendas: dadosVendas,
+    loading,
+    error,
+    loadingProgress,
+    loadingMessage,
+    invalidateAllCache
+  } = useRelatorioData(user?.cd_representante);
+
   // Estados principais
   const [filtros, setFiltros] = useState<Filtro[]>([]);
   const [novoFiltro, setNovoFiltro] = useState({
@@ -214,18 +226,7 @@ export default function RelatoriosPage() {
   const [visualizacao, setVisualizacao] = useState('tabela');
   const [nomeRelatorio, setNomeRelatorio] = useState('');
   const [filtroEditando, setFiltroEditando] = useState<Filtro | null>(null);
-  
-  // Estados dos dados
-  const [dadosClientes, setDadosClientes] = useState<Cliente[]>([]);
-  const [dadosItens, setDadosItens] = useState<Item[]>([]);
-  const [dadosVendas, setDadosVendas] = useState<Venda[]>([]);
   const [dadosFiltrados, setDadosFiltrados] = useState<Venda[]>([]);
-  
-  // Estados de controle
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [loadingMessage, setLoadingMessage] = useState('');
-  const [loadingProgress, setLoadingProgress] = useState(0);
 
 // Estados para paginação
 const [paginaAtual, setPaginaAtual] = useState(1);
@@ -268,241 +269,21 @@ const converterValor = useCallback((valor: string | number | null | undefined): 
 
 // formatarMoeda agora é importado de formatacao-monetaria.ts
 
-  // Função para limpar cache e recarregar
-  const limparCacheERecarregar = useCallback(() => {
-    cache.clearAll();
-    window.location.reload();
-  }, []);
+  // Função para limpar cache e recarregar dados
+  const limparCacheERecarregar = useCallback(async () => {
+    await invalidateAllCache();
+  }, [invalidateAllCache]);
 
-  // Carregar todos os dados com UX aprimorada + CACHE
+  // Ref para rastrear se já inicializamos os dados filtrados
+  const dadosInicializados = useRef(false);
+
+  // Inicializar dadosFiltrados quando vendas carregarem (apenas uma vez)
   useEffect(() => {
-    // Só carrega se tiver usuário autenticado
-    if (!user?.id) {
-      console.log('⏳ Aguardando autenticação...');
-      return;
+    if (dadosVendas.length > 0 && !dadosInicializados.current) {
+      setDadosFiltrados(dadosVendas);
+      dadosInicializados.current = true;
     }
-
-    const carregarDados = async (forceRefresh = false) => {
-      try {
-        setLoading(true);
-        setError(null);
-        setLoadingProgress(0);
-        setLoadingMessage('Verificando cache...');
-
-        const userId = user.id;
-
-        console.log('🔄 Iniciando carregamento de dados...', { userId, role: user.role });
-
-        // Limpa caches expirados no início
-        cache.clearExpiredCaches();
-
-        // Verificar se há dados em cache (apenas clientes e itens)
-        // NOTA: Vendas não são cacheadas pois são muito grandes
-        if (!forceRefresh) {
-          const clientesCache = cache.get<Cliente[]>(CACHE_KEYS.CLIENTES, userId);
-          const itensCache = cache.get<Item[]>(CACHE_KEYS.ITENS, userId);
-
-          // Se clientes E itens estão em cache, usa cache parcial
-          if (clientesCache && itensCache) {
-            console.log('✅ Clientes e itens recuperados do cache!');
-            setLoadingMessage('Carregando do cache...');
-            setLoadingProgress(40);
-
-            setDadosClientes(clientesCache);
-            setDadosItens(itensCache);
-
-            console.log('📡 Carregando apenas vendas do banco...');
-            // Continua para carregar vendas do banco
-          }
-        }
-
-        // Helper para carregar todas as páginas com paginação
-        const fetchAll = async <T,>(table: string, columns: string, additionalFilters?: Record<string, unknown>) => {
-          let allData: T[] = [];
-          let start = 0;
-          const limit = 1000;
-          let hasMoreData = true;
-
-          while (hasMoreData) {
-            let query = supabase
-              .from(table)
-              .select(columns)
-              .range(start, start + limit - 1);
-
-            // Aplicar filtros adicionais se fornecidos
-            if (additionalFilters) {
-              Object.entries(additionalFilters).forEach(([key, value]) => {
-                if (value !== undefined && value !== null) {
-                  query = query.eq(key, value);
-                }
-              });
-            }
-
-            const { data, error} = await query;
-
-            if (error) throw error;
-
-            if (data && data.length > 0) {
-              allData = [...allData, ...(data as T[])];
-              start += limit;
-              if (data.length < limit) hasMoreData = false;
-            } else {
-              hasMoreData = false;
-            }
-          }
-
-          return allData;
-        };
-
-        // Etapa 1: Carregar clientes (20% do progresso) - SE NÃO ESTIVER EM CACHE
-        let clientes = dadosClientes;
-        if (clientes.length === 0) {
-          setLoadingMessage('Carregando dados de clientes...');
-          setLoadingProgress(10);
-
-          clientes = await fetchAll<Cliente>('clientes', `
-            id,
-            "Nome",
-            "Município",
-            "Sigla Estado",
-            "CNPJ",
-            "Entidade"
-          `);
-
-          // Salva clientes no cache
-          cache.set(CACHE_KEYS.CLIENTES, clientes, {
-            expiresIn: CACHE_EXPIRATION.CLIENTES,
-            userId
-          });
-
-          setDadosClientes(clientes);
-          console.log(`✅ ${clientes.length} clientes carregados e salvos em cache`);
-        } else {
-          console.log(`✅ ${clientes.length} clientes já estavam em cache`);
-        }
-        setLoadingProgress(20);
-
-        // Etapa 2: Carregar itens (40% do progresso) - SE NÃO ESTIVER EM CACHE
-        let itens = dadosItens;
-        if (itens.length === 0) {
-          setLoadingMessage('Carregando catálogo de produtos...');
-          setLoadingProgress(30);
-
-          itens = await fetchAll<Item>('itens', `
-            id,
-            "Descr. Marca Produto",
-            "Descr. Grupo Produto",
-            "Desc. Subgrupo de Produto",
-            "Cód. Referência",
-            "Cód. do Produto",
-            "Descr. Produto"
-          `);
-
-          // Salva itens no cache
-          cache.set(CACHE_KEYS.ITENS, itens, {
-            expiresIn: CACHE_EXPIRATION.ITENS,
-            userId
-          });
-
-          setDadosItens(itens);
-          console.log(`✅ ${itens.length} itens carregados e salvos em cache`);
-        } else {
-          console.log(`✅ ${itens.length} itens já estavam em cache`);
-        }
-        setLoadingProgress(40);
-
-        // Etapa 3: Carregar vendas (80% do progresso)
-        setLoadingMessage('Carregando histórico de vendas...');
-        setLoadingProgress(50);
-
-        // Garante que o ID do representante esteja no formato correto
-        const repId = user?.cd_representante
-          ? (typeof user.cd_representante === 'string'
-              ? parseFloat(user.cd_representante)
-              : user.cd_representante)
-          : null;
-
-        const vendas = await fetchAll<Venda>('vendas', `
-          id,
-          "Data de Emissao da NF",
-          total,
-          Quantidade,
-          "Preço Unitário",
-          MARCA,
-          GRUPO,
-          CIDADE,
-          NomeCli,
-          NomeRepr,
-          cdCli,
-          "Descr. Produto",
-          "Cód. Referência",
-          cdRepr
-        `,
-        // Aplicar filtro por representante se for consultor de vendas
-        user?.role === 'consultor_vendas' && repId
-          ? { cdRepr: repId }
-          : undefined
-        );
-
-        setLoadingProgress(70);
-        console.log(`✅ ${vendas.length} vendas carregadas (filtradas por usuário)`);
-
-        // Etapa 4: Enriquecer vendas com dados de itens e clientes (95% do progresso)
-        setLoadingMessage('Processando e enriquecendo dados...');
-        setLoadingProgress(80);
-
-        const vendasEnriquecidas = vendas.map(venda => {
-          const itemCorrespondente = itens.find(item =>
-            item["Cód. Referência"] === venda["Cód. Referência"]
-          );
-
-          const clienteCorrespondente = clientes.find(cliente =>
-            cliente.Nome === venda.NomeCli
-          );
-
-          return {
-            ...venda,
-            MARCA: itemCorrespondente?.["Descr. Marca Produto"] || venda.MARCA || 'Marca não encontrada',
-            GRUPO: itemCorrespondente?.["Descr. Grupo Produto"] || venda.GRUPO,
-            "Descr. Produto": itemCorrespondente?.["Descr. Produto"] || venda["Descr. Produto"],
-            CIDADE: clienteCorrespondente?.Município || venda.CIDADE
-          };
-        });
-
-        setLoadingProgress(90);
-
-        // Etapa 5: Finalizar (100% do progresso)
-        setLoadingMessage('Finalizando...');
-        setLoadingProgress(95);
-
-        const cacheSize = cache.getTotalSize();
-        console.log('✅ Dados carregados, processados e salvos em cache:', {
-          clientes: clientes.length,
-          itens: itens.length,
-          vendas: vendasEnriquecidas.length,
-          cacheSize: `${cacheSize} KB`
-        });
-
-        setDadosVendas(vendasEnriquecidas);
-        setDadosFiltrados(vendasEnriquecidas);
-        setLoadingProgress(100);
-        setLoadingMessage('Concluído!');
-
-      } catch (err) {
-        console.error('❌ Erro ao carregar dados:', err);
-        setError(err instanceof Error ? err.message : 'Erro desconhecido ao carregar dados');
-        setLoadingMessage('Erro ao carregar dados');
-      } finally {
-        setTimeout(() => {
-          setLoading(false);
-          setLoadingMessage('');
-          setLoadingProgress(0);
-        }, 500); // Pequeno delay para mostrar 100%
-      }
-    };
-
-    carregarDados();
-  }, [user]);
+  }, [dadosVendas]);
 
   // Função para obter valores únicos de um campo (para selects)
   const obterValoresUnicos = useCallback((tabela: TabelaKey, campo: string): string[] => {

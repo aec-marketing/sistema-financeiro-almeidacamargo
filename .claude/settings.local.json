@@ -38,7 +38,10 @@
       "Bash(npm install:*)",
       "Bash(node:*)",
       "Bash(npx eslint:*)",
-      "Bash(xargs npx eslint:*)"
+      "Bash(xargs npx eslint:*)",
+      "Bash(npm run dev:*)",
+      "Bash(if exist node_modules.vite rd /s /q node_modules.vite)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
